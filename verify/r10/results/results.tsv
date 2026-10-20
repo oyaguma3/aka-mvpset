@@ -1,0 +1,53 @@
+ID	期待	結果	判定	説明
+P1	ACCEPT:any	ACCEPT:any	OK	無改造・共通のルートを信頼・組織 A
+P2	ACCEPT:any	ACCEPT:any	OK	無改造・共通のルートを信頼・他の組織 B（通ってしまう）
+P3	REJECT:unable to get issuer certificate	REJECT:unable to get issuer certificate	OK	無改造・RadSec 用の CA だけを信頼
+P4	ACCEPT:any	ACCEPT:any	OK	PartialChain・RadSec 用の CA を起点・組織 A
+P5	ACCEPT:any	ACCEPT:any	OK	PartialChain・RadSec 用の CA を起点・リーフだけ送る
+P6	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	PartialChain・RadSec 用の CA を起点・他の組織 B
+P7	ACCEPT:any	ACCEPT:any	OK	PartialChain・組織の CA を起点・組織 A
+P8	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	PartialChain・組織の CA を起点・他の組織 B
+P9	REJECT:unable to get issuer certificate	REJECT:unable to get issuer certificate	OK	パッチ版でもオプションを書かなければ無改造と同じ
+P10	REJECT:certificate chain too long	REJECT:certificate chain too long	OK	無改造・共通のルート・1 段深いチェーン
+P11	ACCEPT:any	ACCEPT:any	OK	PartialChain・RadSec 用の CA を起点・1 段深いチェーン
+P12	ACCEPT:any	ACCEPT:any	OK	PartialChain でも共通のルートを置けば他の組織を通す
+P13	ACCEPT:any	ACCEPT:any	OK	Debian の 1.11.2 で共通のルート（今のイメージ）
+P14	ACCEPT:any	ACCEPT:any	OK	Mist の模型・組織の自己署名 CA・無改造
+P15	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	Mist の模型・他の組織の AP
+C1a	REJECT:unable to get certificate CRL	REJECT:unable to get certificate CRL	OK	PartialChain だけの版・RadSec 用の CA と、その CRL（起点の CA 自身の CRL を求められる）
+C2a	REJECT:CRL signature failure	REJECT:CRL signature failure	OK	PartialChain だけの版・組織の CA とその CRL も置く（起点の上の CRL の署名を確かめられない）
+C1	ACCEPT:any	ACCEPT:any	OK	PartialChain・RadSec 用の CA と、その CRL だけ
+C2	ACCEPT:any	ACCEPT:any	OK	PartialChain・RadSec 用の CA と組織の CA と、その 2 つの CRL
+C3	REJECT:certificate revoked	REJECT:certificate revoked	OK	PartialChain・失効させた AP（CRL に載せた）
+C3b	ACCEPT:any	ACCEPT:any	OK	同じ CRL で、失効させていない AP
+C4	ACCEPT:any	ACCEPT:any	OK	PartialChain・組織の CA を起点・組織の CA の CRL と RadSec 用の CA の CRL
+C4b	REJECT:unable to get certificate CRL	REJECT:unable to get certificate CRL	OK	PartialChain・組織の CA を起点・RadSec 用の CA の CRL がない
+C5	ACCEPT:any	ACCEPT:any	OK	無改造・5 段すべてと 5 つの CRL
+C6	REJECT:unable to get certificate CRL	REJECT:unable to get certificate CRL	OK	無改造・共通の中間 CA の CRL が 1 つ欠ける
+C7	REJECT:unable to get certificate CRL	REJECT:unable to get certificate CRL	OK	CRLCheck on・CRL のない持ち込みの CA の AP
+C7b	ACCEPT:any	ACCEPT:any	OK	同じ束で、CRL のあるこちらの CA の証明書
+C7c	ACCEPT:any	ACCEPT:any	OK	無改造（チェーン全体の確認）でも、CRL のない CA の巻き添えにはならない（拒否はその CA の証明書だけ）
+C8	ACCEPT:any	ACCEPT:any	OK	混在の束（こちらの CA と Meraki の模型）・Meraki の AP
+C8b	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	混在の束・他の組織の Meraki の AP
+C8c	REJECT:certificate revoked	REJECT:certificate revoked	OK	混在の束・失効させた Meraki の AP
+C8d	ACCEPT:any	ACCEPT:any	OK	混在の束・こちらのグループの証明書
+B1	ACCEPT:grp-hq-unifi	ACCEPT:grp-hq-unifi	OK	登録したグループの証明書
+B1b	REJECT:no matching TLS client	REJECT:no matching TLS client	OK	同じ CA で、登録していないグループの証明書（共通のブロックなし）
+B1c	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	別のテナントの CA の証明書
+B1d	REJECT:no matching TLS client	REJECT:no matching TLS client	OK	同じ CA で、登録していない AP の証明書
+B2	REJECT:no matching TLS client	REJECT:no matching TLS client	OK	グループのブロックを消すと、失効の前でもつながらない
+B3	ACCEPT:grp-hq-unifi	ACCEPT:grp-hq-unifi	OK	同じ SAN の新しい証明書
+B3c	REJECT:certificate revoked	REJECT:certificate revoked	OK	古い証明書を失効させて SIGHUP（新しい接続）
+B3d	ACCEPT:grp-hq-unifi	ACCEPT:grp-hq-unifi	OK	SIGHUP の後も新しい証明書はつながる
+M1	ACCEPT:shared	ACCEPT:shared	OK	Mist の模型の AP は共通のブロック
+M2	ACCEPT:grp-hq-unifi	ACCEPT:grp-hq-unifi	OK	こちらのグループの証明書はグループのブロック
+M3	REJECT:no matching TLS client	REJECT:no matching TLS client	OK	登録していないこちらの証明書は、共通のブロックにも入らない
+M4	REJECT:unable to get local issuer certificate	REJECT:unable to get local issuer certificate	OK	他の組織の Mist の AP
+M5	ACCEPT:grp-hq-unifi	ACCEPT:grp-hq-unifi	OK	CRLCheck off では失効させた証明書もつながる（ブロックの削除で止める必要）
+V1	code=1;nas=tenant-b-ap-001;stamp=42;vsa9=kept	code=1;nas=tenant-b-ap-001;stamp=42;vsa9=kept	OK	AP のブロック: NAS-Identifier を置き換え、偽の刻印を消して付け直す。他の業者の VSA は残る
+V2	code=1;nas=ap-hq-01;stamp=42;vsa9=kept	code=1;nas=ap-hq-01;stamp=42;vsa9=kept	OK	グループのブロック: NAS-Identifier はそのまま、刻印は付け直す
+V3	code=1;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	code=1;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	OK	グループのブロック: NAS-Identifier がなければ補う
+V4	code=4;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	code=4;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	OK	Accounting にも刻印が付く
+V5	code=1;nas=Q2AA:office;stamp=42;vsa9=kept	code=1;nas=Q2AA:office;stamp=42;vsa9=kept	OK	持ち込みの CA（Meraki の模型）の AP は共通のブロック
+V6	code=1;nas=tenant-b-ap-001;stamp=42;vsa9=kept	code=1;nas=tenant-b-ap-001;stamp=42;vsa9=kept	OK	Debian の 1.11.2 でも同じ書き方が効く（AP のブロック）
+V7	code=1;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	code=1;nas=tenant-b-hq-unifi;stamp=42;vsa9=kept	OK	Debian の 1.11.2（グループのブロック）
