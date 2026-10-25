@@ -1,0 +1,420 @@
+openapi: 3.0.3
+info:
+  title: 認証ベクターAPI（契約）
+  version: 1.0.0-draft
+  license:
+    name: MIT
+  description: |
+    認証ベクターを作るノード（取得先。aka-vecgen など）と、それを呼ぶノード（aka-radius）の間の契約。
+    文章の正本は `docs/av-api-contract.md` で、本ファイルはその機械で読める定義。両者が食い違うときは文章を正とする。
+
+    3GPP TS 29.503 Nudm_UEAU の GenerateAv（HSS 向け）をもとにし、パス・項目名・値の範囲は
+    TS 29.503 v18.4.0 の OpenAPI の定義に合わせた。違い（契約の §12）:
+    - 認可は mTLS のクライアント証明書だけ。OAuth2.0 と NRF は使わない。
+    - 認証タイプは `eap-aka`、`eap-aka-prime`、独自の `umts-aka`。他は 501。
+    - 加入者がいないときも 404 を返さず、403 の一般的な拒否にする。
+    - `anId` は `EAP_AKA_PRIME` で必須。
+    - `X-Trace-ID` でトレースID を受け渡す。
+
+    パスの `/nudm-ueau/v1` は TS 29.503 の API の版で、契約の版（`info.version`）とは別に固定する。
+
+servers:
+  - url: https://{host}:{port}/nudm-ueau/v1
+    description: mTLS（クライアント証明書が必須）
+    variables:
+      host:
+        default: localhost
+      port:
+        default: '8443'
+
+paths:
+  /{supi}/hss-security-information/{hssAuthType}/generate-av:
+    post:
+      summary: 認証ベクターを生成する
+      operationId: GenerateAv
+      description: |
+        指定した加入者の認証ベクターを `numOfRequestedVectors` 個生成する（契約の §6〜§8）。
+        `resynchronizationInfo` があれば再同期として扱い、AUTS から取り出した SQN_MS より大きい SQN のベクターを返す。
+
+        判定の順（契約の §9.2）:
+        1. TLS でのクライアントの識別（登録していない証明書はハンドシェイクで拒否するか、403 の一般的な拒否）
+        2. 加入者に依らない検査（パス・ボディの形、認証タイプ、`anId`）→ 400 / 501
+        3. 加入者に依る検査（有無・許可・状態・AUTS）→ どれも 403 の一般的な拒否
+
+        冪等ではない。同じ要求を 2 回送ると、別のベクターが 2 つ作られる。
+      parameters:
+        - name: supi
+          in: path
+          required: true
+          description: 加入者の SUPI。`imsi-<IMSI>` の形だけを扱う。
+          schema:
+            $ref: '#/components/schemas/Supi'
+        - name: hssAuthType
+          in: path
+          required: true
+          description: 認証タイプ。ボディの `hssAuthType` と対応していなければ 400 を返す。
+          schema:
+            $ref: '#/components/schemas/HssAuthTypeInUri'
+        - $ref: '#/components/parameters/XTraceIdRequest'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HssAuthenticationInfoRequest'
+            examples:
+              eapAka:
+                summary: EAP-AKA のベクターを 1 個
+                value:
+                  hssAuthType: EAP_AKA
+                  numOfRequestedVectors: 1
+              eapAkaPrime:
+                summary: EAP-AKA' のベクターを 1 個
+                value:
+                  hssAuthType: EAP_AKA_PRIME
+                  numOfRequestedVectors: 1
+                  anId: WLAN
+              eapAkaPrimeResync:
+                summary: EAP-AKA' の再同期
+                value:
+                  hssAuthType: EAP_AKA_PRIME
+                  numOfRequestedVectors: 1
+                  anId: WLAN
+                  resynchronizationInfo:
+                    rand: 23553cbe9637a89d218ae64dae47bf35
+                    auts: ba853f3c123c01cfaf9ec4e871e9
+      responses:
+        '200':
+          description: |
+            生成した認証ベクター。要求した数ちょうどを、SQN の小さい順に返す。
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+            Cache-Control:
+              $ref: '#/components/headers/CacheControlNoStore'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HssAuthenticationInfoResult'
+              examples:
+                eapAka:
+                  value:
+                    hssAuthenticationVectors:
+                      - avType: EAP_AKA
+                        rand: 23553cbe9637a89d218ae64dae47bf35
+                        xres: a54211d5e3ba50bf
+                        autn: 55f328b43577b9b94a9ffac354dfafb3
+                        ck: b40ba9a3c58b2a05bbf0d987b21bf8cb
+                        ik: f769bcd751044604127672711c6d3441
+        '400':
+          description: |
+            加入者に依らない検査の誤り。加入者の有無で応答は変わらない。`cause` は次のいずれか。
+            - `INVALID_MSG_FORMAT`: JSON として読めない
+            - `MANDATORY_IE_MISSING`: 必須の項目がない（`EAP_AKA_PRIME` の `anId` を含む）
+            - `MANDATORY_IE_INCORRECT`: パスの値や必須の項目の値が正しくない、パスとボディの `hssAuthType` が対応しない、数が範囲の外
+            - `OPTIONAL_IE_INCORRECT`: 任意の項目の値が正しくない、そのクライアントに許していない `anId`
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '403':
+          description: |
+            一般的な拒否（契約の §9.2）。次のどれでも、同じステータス・同じ本文を返す。`detail` は入れない。
+            - 加入者が登録されていない
+            - クライアントがその加入者の払い出しを許されていない
+            - 加入者が Inactive または Terminated
+            - 再同期で AUTS の MAC-S が合わない
+            - 登録したクライアントが使えなくなっている
+
+            詳しい理由は取得先のログにだけ残す。SQN は進めない。
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/GenericRejection'
+              example:
+                title: Forbidden
+                status: 403
+                cause: AUTHENTICATION_REJECTED
+        '500':
+          description: 取得先の中の誤り。`cause` は `SYSTEM_FAILURE`。`detail` に中の誤りの文を入れない。クライアントは一時的な誤りとして扱う。
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '501':
+          description: 対応していない認証タイプ（`eps-aka`、`ims-aka`、`gba-aka`）。`cause` は `AUTH_TYPE_NOT_SUPPORTED`（TS 29.503 にない値）。
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '503':
+          description: 取得先が一時的に応えられない（任意）。`cause` は `NF_CONGESTION`。クライアントは 500 と同じ一時的な誤りとして扱う。
+          headers:
+            X-Trace-ID:
+              $ref: '#/components/headers/XTraceIdResponse'
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+components:
+  parameters:
+    XTraceIdRequest:
+      name: X-Trace-ID
+      in: header
+      required: false
+      description: |
+        1 回の認証を表すトレースID。取得先はこれを要求のログに残し、応答の `X-Trace-ID` で返す。
+        ないとき・形が違うときは取得先が採番する（16 進 32 桁）。
+      schema:
+        $ref: '#/components/schemas/TraceId'
+
+  headers:
+    XTraceIdResponse:
+      description: 要求で受け取ったトレースID、または取得先が採番したもの。エラーの応答でも返す。
+      required: true
+      schema:
+        $ref: '#/components/schemas/TraceId'
+    CacheControlNoStore:
+      description: ベクターを途中で保存させないため `no-store` を付ける。
+      schema:
+        type: string
+        enum:
+          - no-store
+
+  schemas:
+    TraceId:
+      type: string
+      pattern: '^[\x21-\x7E]{1,64}$'
+
+    Supi:
+      type: string
+      pattern: '^imsi-[0-9]{5,15}$'
+      example: imsi-001010000000001
+
+    HssAuthTypeInUri:
+      type: string
+      enum:
+        - eap-aka
+        - eap-aka-prime
+        - umts-aka
+
+    HssAuthType:
+      type: string
+      enum:
+        - EAP_AKA
+        - EAP_AKA_PRIME
+        - UMTS_AKA
+
+    HssAuthenticationInfoRequest:
+      type: object
+      description: |
+        知らない項目は無視する（拒否しない）。`hssAuthType` が `EAP_AKA_PRIME` のときは `anId` が必須（契約の §6.4）。
+      required:
+        - hssAuthType
+        - numOfRequestedVectors
+      properties:
+        hssAuthType:
+          $ref: '#/components/schemas/HssAuthType'
+        numOfRequestedVectors:
+          $ref: '#/components/schemas/NumOfRequestedVectors'
+        resynchronizationInfo:
+          $ref: '#/components/schemas/ResynchronizationInfo'
+        anId:
+          $ref: '#/components/schemas/AccessNetworkId'
+        requestingNodeType:
+          type: string
+          description: 受け取るが使わない。
+        servingNetworkId:
+          type: object
+          description: 受け取るが使わない。
+        supportedFeatures:
+          type: string
+          description: 受け取るが使わない。
+
+    NumOfRequestedVectors:
+      type: integer
+      minimum: 1
+      maximum: 5
+      description: 取得先は 1〜5 のどれにも応える。aka-radius は常に 1 を要求する（契約の §7）。
+
+    ResynchronizationInfo:
+      type: object
+      description: 再同期のときに、直前の Challenge で送った RAND と、端末から受け取った AUTS を入れる。
+      required:
+        - rand
+        - auts
+      properties:
+        rand:
+          $ref: '#/components/schemas/Rand'
+        auts:
+          $ref: '#/components/schemas/Auts'
+
+    AccessNetworkId:
+      type: string
+      minLength: 1
+      description: |
+        EAP-AKA' の鍵の導出（RFC 9048 §3.3）に使うネットワーク名。`EAP_AKA_PRIME` で必須、他の認証タイプでは無視する。
+        取得先はクライアントごとに許す値（既定は `WLAN` だけ）を持ち、許していない値には 400（`OPTIONAL_IE_INCORRECT`）を返す。
+      example: WLAN
+
+    HssAuthenticationInfoResult:
+      type: object
+      description: 知らない項目があっても、クライアントは無視する。
+      required:
+        - hssAuthenticationVectors
+      properties:
+        hssAuthenticationVectors:
+          $ref: '#/components/schemas/HssAuthenticationVectors'
+
+    HssAuthenticationVectors:
+      description: |
+        `EAP_AKA` と `UMTS_AKA` では AvImsGbaEapAka の配列、`EAP_AKA_PRIME` では AvEapAkaPrime の配列。
+        要求した数ちょうどを、SQN の小さい順に並べる。
+      oneOf:
+        - type: array
+          items:
+            $ref: '#/components/schemas/AvImsGbaEapAka'
+          minItems: 1
+          maxItems: 5
+        - type: array
+          items:
+            $ref: '#/components/schemas/AvEapAkaPrime'
+          minItems: 1
+          maxItems: 5
+
+    AvImsGbaEapAka:
+      type: object
+      required:
+        - avType
+        - rand
+        - xres
+        - autn
+        - ck
+        - ik
+      properties:
+        avType:
+          type: string
+          enum:
+            - EAP_AKA
+            - UMTS_AKA
+        rand:
+          $ref: '#/components/schemas/Rand'
+        xres:
+          $ref: '#/components/schemas/Xres'
+        autn:
+          $ref: '#/components/schemas/Autn'
+        ck:
+          $ref: '#/components/schemas/Key128'
+        ik:
+          $ref: '#/components/schemas/Key128'
+
+    AvEapAkaPrime:
+      type: object
+      required:
+        - avType
+        - rand
+        - xres
+        - autn
+        - ckPrime
+        - ikPrime
+      properties:
+        avType:
+          type: string
+          enum:
+            - EAP_AKA_PRIME
+        rand:
+          $ref: '#/components/schemas/Rand'
+        xres:
+          $ref: '#/components/schemas/Xres'
+        autn:
+          $ref: '#/components/schemas/Autn'
+        ckPrime:
+          $ref: '#/components/schemas/Key128'
+        ikPrime:
+          $ref: '#/components/schemas/Key128'
+
+    Rand:
+      type: string
+      description: 16 バイト。取得先は小文字で返し、両側とも大文字も受け付ける。
+      pattern: '^[A-Fa-f0-9]{32}$'
+
+    Auts:
+      type: string
+      description: 14 バイト（SQN_MS ⊕ AK* の 6 バイトと MAC-S の 8 バイト）。
+      pattern: '^[A-Fa-f0-9]{28}$'
+
+    Autn:
+      type: string
+      description: 16 バイト。
+      pattern: '^[A-Fa-f0-9]{32}$'
+
+    Xres:
+      type: string
+      description: 4〜16 バイト（TS 29.503 と同じ）。Milenage では 8 バイト。クライアントは長さを確かめる。
+      pattern: '^[A-Fa-f0-9]{8,32}$'
+
+    Key128:
+      type: string
+      description: 16 バイト（CK、IK、CK'、IK'）。ログに出してはならない。
+      pattern: '^[A-Fa-f0-9]{32}$'
+
+    ProblemDetails:
+      type: object
+      description: TS 29.571 の ProblemDetails のうち、取得先が返す項目。
+      required:
+        - status
+        - cause
+      properties:
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+          description: 400 と 501 では誤りの説明を入れてよい。500 と 503 では中の誤りの文を入れない。403 では入れない。
+        cause:
+          type: string
+          enum:
+            - INVALID_MSG_FORMAT
+            - MANDATORY_IE_MISSING
+            - MANDATORY_IE_INCORRECT
+            - OPTIONAL_IE_INCORRECT
+            - AUTHENTICATION_REJECTED
+            - SYSTEM_FAILURE
+            - AUTH_TYPE_NOT_SUPPORTED
+            - NF_CONGESTION
+
+    GenericRejection:
+      type: object
+      description: 一般的な拒否の固定の本文。理由によって変えない。
+      required:
+        - title
+        - status
+        - cause
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          enum:
+            - Forbidden
+        status:
+          type: integer
+          enum:
+            - 403
+        cause:
+          type: string
+          enum:
+            - AUTHENTICATION_REJECTED
