@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: 認証ベクターAPI（契約）
-  version: 1.0.0-draft
+  version: 1.0.0
   license:
     name: MIT
   description: |
