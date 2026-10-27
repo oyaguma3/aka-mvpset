@@ -536,6 +536,18 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 
 - 4 つとも CI（契約テストを含む）と govulncheck が通った。組み合わせは `versions.env`。
 
+### 18.5 段階 2 の進め方（2026-10-27 に合意）
+
+| # | 決めたこと |
+|---|---|
+| H1 | 1 つずつ、次の順に進める: 適合試験（`conformance/av-api/`）→ aka-vecgen 2-1 → aka-radius 2-1・2-2（検証機で最初の通し）→ aka-vecgen 2-2〜2-4 → aka-radius 2-3〜2-6 |
+| H2 | aka-vecgen の手順を組み替える。データの形とそれを読み書きする口を同じ手順で変える（2-1 に状態と管理API 2.0.0 の加入者の口をまとめる） |
+| H3 | aka-radius の手順を組み替える。2-1 では Gin を外さない（2-2 と 2-3 で口ごと消える）。管理API の加入者の口を 2-3、`/sessions`・`/usage` を 2-4 に置く |
+| H4 | aka-provisioner と aka-ossbss は段階 2 では触らない（CI の契約テストの相手は段階 1 のまま）。下流の管理API 2.0.0 との契約の試験は段階 3-1 で行う。`versions.env` は段階 2 の終わりに aka-vecgen と aka-radius だけを更新し、管理面とは組み合わせとして合っていないことを注記する |
+| H5 | 適合試験は本リポジトリの `conformance/av-api/` の独立した Go のモジュール（外部依存なし）。Milenage と EAP-AKA' の鍵の導出は自前で書き、TS 35.208 と RFC 5448 の試験ベクターで確かめる。aka-vecgen 用の加入者の投入のスクリプトを添える。aka-vecgen の CI は本リポジトリの固定のコミットで適合試験を走らせる。本リポジトリにも CI を足す |
+| H6 | aka-radius は手順ごとに feature → develop（squash）。develop → main は段階 2 の終わりに 1 回。D-文書は 2-6 でまとめて改版し、それまでは設計概要を正とする |
+| H7 | 検証機での通しは 2 回（aka-radius 2-2 の後と段階 2 の終わり）。刻印はエッジの代わりの radsecproxy（`verify/r10` のパッチ版、UDP で受けて UDP で送る）で付け、Accounting は radclient で送る（eapaka_test は刻印を付けられず、Accounting も送らないため）。aka-vecgen の暗号化の後に性能を軽く測る |
+
 ## 19. 未決・計測待ち
 
 | # | 事項 | 決め方 |

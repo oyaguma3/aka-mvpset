@@ -1,0 +1,60 @@
+# 認証ベクターAPI の適合試験（conformance/av-api）の整形・vet・試験と、govulncheck を行う。
+# 試験は、Milenage と鍵の導出を TS 35.208・RFC 5448 の試験ベクターで確かめ、適合試験そのものを
+# 契約どおりの偽の取得先と、わざと誤りを入れた偽物に対して走らせる。
+name: conformance
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # 毎週月曜 9 時台（日本時間）。govulncheck のため（脆弱性の情報はコードを変えなくても増える）。
+    - cron: "37 0 * * 1"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: conformance/av-api
+
+jobs:
+  test:
+    name: 適合試験のコードの試験
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: conformance/av-api/go.mod
+      - name: 整形の確認
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "gofmt で整形されていないファイル:"
+            echo "$unformatted"
+            exit 1
+          fi
+      - name: go vet
+        run: go vet ./...
+      - name: テスト
+        run: go test -race -count=1 ./...
+      - name: スクリプトの構文
+        run: sh -n fixtures/aka-vecgen.sh
+
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: conformance/av-api/go.mod
+      - name: govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@v1.9.0 ./...
