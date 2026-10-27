@@ -1,0 +1,4 @@
+{"achievedRate":100.01498831615955,"durationSec":60,"label":"base-round1","maxMs":236.326,"ok":6000,"p50ms":3.283,"p95ms":4.862,"p99ms":76.5,"rate":100,"requests":6000,"statusCounts":{"200":6000},"subscribers":10000,"transportErrors":0}
+{"achievedRate":100.0152850493036,"durationSec":60,"label":"kek-round1","maxMs":248.078,"ok":6000,"p50ms":3.346,"p95ms":4.5,"p99ms":50.995,"rate":100,"requests":6000,"statusCounts":{"200":6000},"subscribers":10000,"transportErrors":0}
+{"achievedRate":100.01631712538477,"durationSec":60,"label":"base-round2","maxMs":9.109,"ok":6000,"p50ms":3.288,"p95ms":4.578,"p99ms":6.451,"rate":100,"requests":6000,"statusCounts":{"200":6000},"subscribers":10000,"transportErrors":0}
+{"achievedRate":100.01528982076213,"durationSec":60,"label":"kek-round2","maxMs":9.018,"ok":6000,"p50ms":3.34,"p95ms":5.645,"p99ms":6.394,"rate":100,"requests":6000,"statusCounts":{"200":6000},"subscribers":10000,"transportErrors":0}
