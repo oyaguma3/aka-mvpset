@@ -462,10 +462,10 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 
 | ノード | 改修 |
 |---|---|
-| aka-vecgen | 改名。状態（3 つ）と状態の移り方の強制、Terminated から戻す API。Ki / OPc の暗号化。認証ベクターAPI を契約に合わせる（一般的な拒否、ネットワーク名の照合を加入者を調べる前に行う、EAP-AKA' の `anId` を必須にする。`av-api-contract.md` §16.1）。設計概要は `nodes/aka-vecgen.md`。一括取得（鍵を返さない）。管理用のピンの読み直し。監査ログの書き出し |
-| aka-radius | 改名。利用の集計（課金レコード用。`charging-records.md` §5.2）。vector-api と Admin-TUI を外す。認証ベクターAPI の契約に合わせる（EAP-AKA' では `EAP_AKA_PRIME` で CK'・IK' を受け取り、自分での導出をやめる。応答の値の長さの確かめ、結果の分類、再同期の回数の上限、取得先ごとのタイムアウト。`av-api-contract.md` §16.2）。設計概要は `nodes/aka-radius.md`（vector-gateway は auth に取り込み、ログは Fluent Bit を残す）。Gin を外し、1 つのモジュールにまとめる。状態（3 つ）。取得先の登録簿と IMSI ごとの取得先。テナントの刻印による認可と、刻印を信頼する RADIUS クライアントの印、セッションへのテナントの ID の記録（§8.2）。重複応答のキャッシュ（同じ要求に同じ応答を返す。エッジの再送で SQN が余計に進むのを防ぐ）。一覧の索引、一括取得、セッションの複数 IMSI の取得。ログの IMSI のマスクの既定をオフにする |
-| aka-provisioner | 改名。利用の集計の取り出しの中継（課金レコード用）。vecgen と radius を別々に中継する（2 つのノードにまたがる取り消しをなくす）。一括取得とセッションの取得の中継。状態の操作。鍵の経路を限る。radsec-edge と radsec-ca への中継（エッジの段階 4）。設計概要は `nodes/aka-provisioner.md`（統合操作と補償をなくし、許した口だけを通す中継にする） |
-| aka-ossbss | 改名。課金レコード（状態の事実の記録、利用の集計の取り込み、締めのジョブ、CSV と PGP、画面。`charging-records.md`）。台帳と突き合わせ。一覧・件数を台帳で行う。一括投入のジョブと画面。状態の画面（vecgen と radius を並べる）。鍵の表示を外す。エッジ・AP・グループ・持ち込みの CA の画面（エッジの段階 4）と、用途ごとの手順書の案内。エッジの配置の上限の検査。設計概要は `nodes/aka-ossbss.md`（テナントなしをなくす、突き合わせは台帳を下流に合わせる、ジョブはプロセスの中のスケジューラー） |
+| aka-vecgen | 改名。状態（3 つ）と状態の移り方の強制、Terminated から戻す API。Ki / OPc の暗号化。認証ベクターAPI を契約に合わせる（一般的な拒否、ネットワーク名の照合を加入者を調べる前に行う、EAP-AKA' の `anId` を必須にする。`av-api-contract.md` §16.1）。設計概要は [aka-vecgen の `docs/design-overview.md`](https://github.com/oyaguma3/aka-vecgen/blob/main/docs/design-overview.md)。一括取得（鍵を返さない）。管理用のピンの読み直し。監査ログの書き出し |
+| aka-radius | 改名。利用の集計（課金レコード用。`charging-records.md` §5.2）。vector-api と Admin-TUI を外す。認証ベクターAPI の契約に合わせる（EAP-AKA' では `EAP_AKA_PRIME` で CK'・IK' を受け取り、自分での導出をやめる。応答の値の長さの確かめ、結果の分類、再同期の回数の上限、取得先ごとのタイムアウト。`av-api-contract.md` §16.2）。設計概要は [aka-radius の `docs/design-overview.md`](https://github.com/oyaguma3/aka-radius/blob/main/docs/design-overview.md)（vector-gateway は auth に取り込み、ログは Fluent Bit を残す）。Gin を外し、1 つのモジュールにまとめる。状態（3 つ）。取得先の登録簿と IMSI ごとの取得先。テナントの刻印による認可と、刻印を信頼する RADIUS クライアントの印、セッションへのテナントの ID の記録（§8.2）。重複応答のキャッシュ（同じ要求に同じ応答を返す。エッジの再送で SQN が余計に進むのを防ぐ）。一覧の索引、一括取得、セッションの複数 IMSI の取得。ログの IMSI のマスクの既定をオフにする |
+| aka-provisioner | 改名。利用の集計の取り出しの中継（課金レコード用）。vecgen と radius を別々に中継する（2 つのノードにまたがる取り消しをなくす）。一括取得とセッションの取得の中継。状態の操作。鍵の経路を限る。radsec-edge と radsec-ca への中継（エッジの段階 4）。設計概要は [aka-provisioner の `docs/design-overview.md`](https://github.com/oyaguma3/aka-provisioner/blob/main/docs/design-overview.md)（統合操作と補償をなくし、許した口だけを通す中継にする） |
+| aka-ossbss | 改名。課金レコード（状態の事実の記録、利用の集計の取り込み、締めのジョブ、CSV と PGP、画面。`charging-records.md`）。台帳と突き合わせ。一覧・件数を台帳で行う。一括投入のジョブと画面。状態の画面（vecgen と radius を並べる）。鍵の表示を外す。エッジ・AP・グループ・持ち込みの CA の画面（エッジの段階 4）と、用途ごとの手順書の案内。エッジの配置の上限の検査。設計概要は [aka-ossbss の `docs/design-overview.md`](https://github.com/oyaguma3/aka-ossbss/blob/main/docs/design-overview.md)（テナントなしをなくす、突き合わせは台帳を下流に合わせる、ジョブはプロセスの中のスケジューラー） |
 | radsec-edge | 管理モード（段階 4）。テナントの刻印（VSA。§8.1）。AP・グループ・持ち込みの CA の登録と client ブロックの並べ方、CRL のない CA の扱い、送信元の範囲（§9.2〜§9.4）。PartialChain のパッチを当てた radsecproxy のソースからのビルド（§9.6）。データ面と管理面へのピア。Docker の設定（`userland-proxy: false`、`live-restore: true`）を導入の手順に入れる |
 | radsec-ca | 持ち込みの CA の登録（テナント専用の確認、フィンガープリントの重複の検査）、CRL の取り直し（URL・Meraki の Dashboard API・アップロード）と配布、CRL のない CA の印。グループの証明書のプロファイル `group-client`（radsec-ca の設計概要 §19） |
 | aka-mvpset | 契約と適合試験（`conformance/av-api/`）、E2E、組み合わせの表、導入と運用の手順書、監視ノードの構成、ログの取得の仕組み |
@@ -507,6 +507,34 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 
 - 本リポジトリと各リポジトリは公開・MIT。
 - 社内の設計資料に由来する内容は、設計の原則と要件の言い換えに留め、資料の名前・決定の ID・内部の識別子の形・社外との取り決めは書かない。
+
+### 18.4 段階 1 の記録（2026-10-27）
+
+リポジトリの移行と改名（§17.2）の進め方は、確認事項 G1〜G9 として 2026-10-27 に合意した。
+
+| # | 決めたこと |
+|---|---|
+| G1 | GitHub に空の公開リポジトリを作り、手元からもとの履歴を push する（名前の変更・フォーク・テンプレートは使わない。もとのリポジトリを残すため。決定事項 20） |
+| G2 | 持っていくのは `main` だけ（aka-radius は `main` と `develop`）。古いタグと済んだ `feature/*` のブランチは持っていかない。GitHub の設定はもとと同じ既定のまま |
+| G3 | aka-vecgen → aka-radius → aka-provisioner → aka-ossbss の順に 1 つずつ（CI の契約テストの依存の順） |
+| G4 | 改名の範囲は各リポジトリの module パス・コマンド・イメージ名・ネットワーク名・README と CI。環境変数の接頭辞は aka-vecgen だけ変える（`AKA_` → `VECGEN_`）。aka-radius の接頭辞と D-文書の中の旧名は段階 2 で直す |
+| G5 | `docs/nodes/` の設計概要を各リポジトリの `docs/design-overview.md` に移し、今の作りの設計概要は `docs/poc/design-overview.md` に移す。`docs/nodes/` には案内を残す |
+| G6 | もとのリポジトリは何も変えない（PoC セットの手直しに使う）。扱いは `mvpset-v1.0.0` のときに決める |
+| G7 | 手元の作業ディレクトリは新しく取り直し、もとのディレクトリは残す |
+| G8 | コミットは各リポジトリの今の流儀に従う（aka-radius は feature → develop を squash、develop → main を merge commit） |
+| G9 | 段階 1 の最後に `versions.env` を作る。タグは付けない |
+
+- G4 から外したこと: aka-radius の共有のネットワークの名前 `eapaka-prov` は段階 1 では変えず、段階 2-5（管理API の置き換えと D-文書の改版）に回した（2026-10-27 にユーザーと合意）。D-文書 8 本に 50 か所以上出てきて、段階 1 で変えるとコードと D-文書が食い違うため。aka-vecgen の共有のネットワーク `aka-av` も変えていない（もう `aka-` で始まるため）。
+- 結果:
+
+| リポジトリ | もと | 改名のコミット |
+|---|---|---|
+| [aka-vecgen](https://github.com/oyaguma3/aka-vecgen) | aka-only-server `c2a093d` | `481a7cc` |
+| [aka-radius](https://github.com/oyaguma3/aka-radius) | eapaka-radius-server-poc `1f8aad1`（develop `86e05a9`） | `c3d7288`（develop、#1）、`dd107b3`（main、#2） |
+| [aka-provisioner](https://github.com/oyaguma3/aka-provisioner) | eapaka-node-provisioner `0ca238d` | `0821800`（契約テストの相手を aka-radius `dd107b3`・aka-vecgen `481a7cc` に） |
+| [aka-ossbss](https://github.com/oyaguma3/aka-ossbss) | eapaka-ossbss-sample `d970d48` | `c2bdc6d`（契約テストの相手を aka-provisioner `0821800`・aka-radius `dd107b3`・aka-vecgen `481a7cc` に） |
+
+- 4 つとも CI（契約テストを含む）と govulncheck が通った。組み合わせは `versions.env`。
 
 ## 19. 未決・計測待ち
 
