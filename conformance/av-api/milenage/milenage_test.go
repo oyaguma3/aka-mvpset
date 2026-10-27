@@ -15,9 +15,7 @@ func h(t *testing.T, s string) []byte {
 	return b
 }
 
-// TestVectors は 3GPP TS 35.208 4.3 の試験セットで確かめる。
-// 値は aka-vecgen（もとの aka-only-server）の試験と同じ表から取った。その表の試験セット 2 は試験セット 1 と
-// 同じ値になっているので、ここでは 2 を除いた 19 件を使う。
+// TestVectors は 3GPP TS 35.208 4.3 の試験セット 1〜20 で確かめる。
 var testSets = []struct {
 	set                                int
 	k, rand, sqn, amf, opc             string
@@ -25,6 +23,8 @@ var testSets = []struct {
 }{
 	{1, "465b5ce8b199b49faa5f0a2ee238a6bc", "23553cbe9637a89d218ae64dae47bf35", "ff9bb4d0b607", "b9b9", "cd63cb71954a9f4e48a5994e37a02baf",
 		"4a9ffac354dfafb3", "01cfaf9ec4e871e9", "a54211d5e3ba50bf", "b40ba9a3c58b2a05bbf0d987b21bf8cb", "f769bcd751044604127672711c6d3441", "aa689c648370", "451e8beca43b"},
+	{2, "0396eb317b6d1c36f19c1c84cd6ffd16", "c00d603103dcee52c4478119494202e8", "fd8eef40df7d", "af17", "53c15671c60a4b731c55b4a441c0bde2",
+		"5df5b31807e258b0", "a8c016e51ef4a343", "d3a628ed988620f0", "58c433ff7a7082acd424220f2b67c556", "21a8c1f929702adb3e738488b9f5c5da", "c47783995f72", "30f1197061c1"},
 	{3, "fec86ba6eb707ed08905757b1bb44b8f", "9f7c8d021accf4db213ccff0c7f71a6a", "9d0277595ffc", "725c", "1006020f0a478bf6b699f15c062e42b3",
 		"9cabc3e99baf7281", "95814ba2b3044324", "8011c48c0c214ed2", "5dbdbb2954e8f3cde665b046179a5098", "59a92d3b476a0443487055cf88b2307b", "33484dc2136b", "deacdd848cc6"},
 	{4, "9e5944aea94b81165c82fbf9f32db751", "ce83dbc54ac0274a157c17f80d017bd6", "0b604a81eca8", "9e09", "a64a507ae1a2a98bb88eb4210135dc87",
