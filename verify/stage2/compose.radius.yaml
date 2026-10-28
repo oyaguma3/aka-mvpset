@@ -1,0 +1,62 @@
+# 段階 2 の通し（verify/stage2）で aka-radius の compose（deployments/docker-compose.yml と docker-compose.aka-av.yml）に重ねる設定。
+# パスは aka-radius の deployments/ から見たもの（作業場所の配置は README の「配置」）。
+services:
+  # radsecproxy は起動のときに上流の名前を IP に引いたまま使うので、auth と acct を再起動しても同じ IP になるように決める
+  auth:
+    networks:
+      default:
+        ipv4_address: 172.30.250.11
+  acct:
+    networks:
+      default:
+        ipv4_address: 172.30.250.12
+  # テナント 42 と 7 のエッジの代わり（radsecproxy）。ホストの AP の役（eapaka_test）からは 127.0.0.1 の別のポートで届く
+  edge-t42:
+    image: stage2-tools:dev
+    command: ["radsecproxy", "-f", "-c", "/etc/radsecproxy.conf"]
+    volumes:
+      - ../../tools/edge-t42.conf:/etc/radsecproxy.conf:ro
+    # radsecproxy は起動のときに上流（auth・acct）の名前を引くので、先に起動させる
+    depends_on:
+      auth:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "127.0.0.1:11812:1812/udp"
+      - "127.0.0.1:11813:1813/udp"
+    networks:
+      default:
+        ipv4_address: 172.30.250.42
+  edge-t7:
+    image: stage2-tools:dev
+    command: ["radsecproxy", "-f", "-c", "/etc/radsecproxy.conf"]
+    volumes:
+      - ../../tools/edge-t7.conf:/etc/radsecproxy.conf:ro
+    # radsecproxy は起動のときに上流（auth・acct）の名前を引くので、先に起動させる
+    depends_on:
+      auth:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "127.0.0.1:21812:1812/udp"
+      - "127.0.0.1:21813:1813/udp"
+    networks:
+      default:
+        ipv4_address: 172.30.250.7
+  # radclient を動かす AP の役（Accounting と、エッジを通さない直の経路の試し）
+  ap:
+    image: stage2-tools:dev
+    networks:
+      default:
+        ipv4_address: 172.30.250.100
+
+networks:
+  # エッジの代わりと AP の役の IP を決めるため、既定のネットワークのアドレスを決める
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.250.0/24

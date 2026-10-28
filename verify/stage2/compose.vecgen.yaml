@@ -1,0 +1,5 @@
+# 段階 2 の通し（verify/stage2）で aka-vecgen の compose（compose.yaml と compose.fluent-bit.yaml）に重ねる設定。
+# 検証機ではビルドしないので、手元で作って送ったイメージを使う。
+services:
+  aka-vecgen:
+    image: aka-vecgen:stage2

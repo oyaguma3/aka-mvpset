@@ -1,0 +1,29 @@
+S0	PASS	加入者 5・RADIUS クライアント 3（5 3）
+E1	PASS	EAP-AKA の成功（テナント 42）
+E2	PASS	Accept に Class・VLAN（Tunnel-*）・Session-Timeout
+E3	PASS	EAP-AKA' の成功（ネットワーク名 WLAN）
+E4	PASS	EAP-AKA の再同期（UE の SQN を上げる）で成功し、再同期の Challenge が 1 回
+E5	PASS	EAP-AKA' の再同期で成功
+R1	PASS	inactive は拒否（AUTH_SUBSCRIBER_INACTIVE）
+R2	PASS	terminated は拒否（AUTH_SUBSCRIBER_TERMINATED）
+R3	PASS	aka-radius にいない加入者は拒否（AUTH_SUBSCRIBER_NOT_FOUND）
+R4	PASS	R1〜R3 では取得先を呼ばない（aka-vecgen の払い出しのログが増えない）
+R5	PASS	aka-vecgen にいない加入者は取得先が断って拒否（VECTOR_REJECTED）
+R6	PASS	別のテナント（7）のエッジからは拒否（AUTH_POLICY_DENIED）
+R7	PASS	エッジを通さない（刻印のない）要求は拒否（AUTH_STAMP_MISSING）
+R8	PASS	刻印を信頼しないクライアントの刻印は使わずに拒否
+A1	PASS	Accounting-Response が 4 つ
+A2	PASS	利用の集計（sessions 1・seconds 90・in 4294968796・out 800）
+A3	PASS	Stop でセッションが消える
+O1	PASS	/sources のクライアント証明書のフィンガープリントが aka-vecgen の登録と一致
+O2	PASS	sources check（本物の aka-vecgen に TLS でつながる）
+O3	PASS	SIGHUP で auth と admin が登録簿を読み直す
+O4	PASS	取得先が止まると遮断器が開く（/status が open）
+O5	PASS	30 秒で半開きになり、/status に報告される（開いてから 46 秒ほど）
+O6	PASS	半開きで 3 回成功すると閉じる
+O7	PASS	続けて 20 回の EAP-AKA が成功（計 333 ms、eapaka_test の起動を含む）
+O8	PASS	Valkey と各サーバーを再起動しても認証できる（AOF）
+O9	PASS	バックアップから戻すと後の加入者は消え、認証は続く
+O10	PASS	Fluent Bit が auth・acct・admin・aka-vecgen のログをファイルに書く
+O11	PASS	監査ログの日ごとのファイルにコマンドと管理API の操作
+O12	PASS	auth・acct・admin が healthy

@@ -1,0 +1,487 @@
+== aka-vecgen
+ Image valkey/valkey:9.1.2 Pulling 
+ b76c2c73ee6a Pulling fs layer 0B
+ 275e07bdc382 Pulling fs layer 0B
+ 6b37362b3da7 Pulling fs layer 0B
+ 3394c8bf4334 Pulling fs layer 0B
+ 8b9d2ac175d0 Pulling fs layer 0B
+ 186fdee7b097 Pulling fs layer 0B
+ 4f4fb700ef54 Pulling fs layer 0B
+ 3394c8bf4334 Download complete 0B
+ 275e07bdc382 Download complete 0B
+ b76c2c73ee6a Download complete 0B
+ 6b37362b3da7 Downloading 1.049MB
+ 6b37362b3da7 Downloading 1.049MB
+ 6b37362b3da7 Downloading 2.097MB
+ 6b37362b3da7 Downloading 2.097MB
+ 6b37362b3da7 Downloading 3.146MB
+ 6b37362b3da7 Downloading 4.194MB
+ 186fdee7b097 Downloading 1.049MB
+ 6b37362b3da7 Downloading 4.194MB
+ 186fdee7b097 Downloading 1.049MB
+ 6b37362b3da7 Downloading 5.243MB
+ 186fdee7b097 Downloading 1.049MB
+ 186fdee7b097 Downloading 2.097MB
+ 6b37362b3da7 Downloading 5.243MB
+ 6b37362b3da7 Downloading 6.291MB
+ 186fdee7b097 Downloading 2.097MB
+ 186fdee7b097 Downloading 2.097MB
+ 6b37362b3da7 Downloading 6.291MB
+ 6b37362b3da7 Downloading 7.34MB
+ 186fdee7b097 Downloading 3.146MB
+ 186fdee7b097 Downloading 3.146MB
+ 6b37362b3da7 Downloading 7.34MB
+ 6b37362b3da7 Downloading 8.389MB
+ 186fdee7b097 Downloading 3.146MB
+ 6b37362b3da7 Downloading 9.437MB
+ 186fdee7b097 Downloading 4.194MB
+ 6b37362b3da7 Downloading 9.437MB
+ 186fdee7b097 Downloading 4.194MB
+ 186fdee7b097 Downloading 4.194MB
+ 6b37362b3da7 Downloading 10.49MB
+ 6b37362b3da7 Downloading 10.49MB
+ 186fdee7b097 Downloading 5.243MB
+ 186fdee7b097 Downloading 5.243MB
+ 6b37362b3da7 Downloading 11.53MB
+ 186fdee7b097 Downloading 5.243MB
+ 6b37362b3da7 Downloading 11.53MB
+ 6b37362b3da7 Downloading 12.58MB
+ 186fdee7b097 Downloading 6.291MB
+ 6b37362b3da7 Downloading 13.63MB
+ 186fdee7b097 Downloading 6.291MB
+ 6b37362b3da7 Downloading 13.63MB
+ 186fdee7b097 Downloading 6.291MB
+ 6b37362b3da7 Downloading 14.68MB
+ 8b9d2ac175d0 Download complete 0B
+ 186fdee7b097 Downloading 7.34MB
+ 6b37362b3da7 Downloading 14.68MB
+ 186fdee7b097 Downloading 7.34MB
+ 6b37362b3da7 Downloading 15.13MB
+ 186fdee7b097 Downloading 7.34MB
+ 4f4fb700ef54 Download complete 0B
+ 6b37362b3da7 Downloading 15.73MB
+ 186fdee7b097 Downloading 8.389MB
+ 6b37362b3da7 Downloading 16.78MB
+ 186fdee7b097 Downloading 8.389MB
+ 186fdee7b097 Downloading 9.437MB
+ 6b37362b3da7 Downloading 16.78MB
+ 6b37362b3da7 Downloading 17.83MB
+ 186fdee7b097 Downloading 9.437MB
+ 6b37362b3da7 Downloading 17.83MB
+ 186fdee7b097 Downloading 9.437MB
+ 6b37362b3da7 Downloading 17.83MB
+ 186fdee7b097 Downloading 10.49MB
+ 186fdee7b097 Downloading 10.49MB
+ 6b37362b3da7 Downloading 18.87MB
+ 6b37362b3da7 Downloading 19.92MB
+ 186fdee7b097 Downloading 10.49MB
+ 186fdee7b097 Downloading 11.53MB
+ 6b37362b3da7 Downloading 19.92MB
+ 6b37362b3da7 Downloading 20.97MB
+ 186fdee7b097 Downloading 11.53MB
+ 6b37362b3da7 Downloading 20.97MB
+ 186fdee7b097 Downloading 11.53MB
+ 6b37362b3da7 Downloading 22.02MB
+ 186fdee7b097 Downloading 12.58MB
+ 6b37362b3da7 Downloading 22.02MB
+ 186fdee7b097 Downloading 12.58MB
+ 6b37362b3da7 Downloading 23.07MB
+ 186fdee7b097 Downloading 13.63MB
+ 186fdee7b097 Downloading 13.63MB
+ 6b37362b3da7 Downloading 23.07MB
+ 6b37362b3da7 Downloading 24.12MB
+ 186fdee7b097 Downloading 14.54MB
+ 186fdee7b097 Download complete 0B
+ 6b37362b3da7 Downloading 25.17MB
+ 6b37362b3da7 Downloading 25.17MB
+ 6b37362b3da7 Downloading 26.21MB
+ 6b37362b3da7 Downloading 27.26MB
+ 6b37362b3da7 Downloading 28.31MB
+ 6b37362b3da7 Downloading 29.36MB
+ 6b37362b3da7 Download complete 0B
+ 6b37362b3da7 Extracting 1B
+ 6b37362b3da7 Extracting 1B
+ 6b37362b3da7 Extracting 1B
+ 6b37362b3da7 Extracting 1B
+ 6b37362b3da7 Extracting 1B
+ 6b37362b3da7 Extracting 1B
+ 3394c8bf4334 Pull complete 0B
+ 275e07bdc382 Pull complete 0B
+ 186fdee7b097 Extracting 1B
+ 6b37362b3da7 Pull complete 0B
+ 186fdee7b097 Extracting 1B
+ 8b9d2ac175d0 Pull complete 0B
+ 186fdee7b097 Pull complete 0B
+ b76c2c73ee6a Pull complete 0B
+ 4f4fb700ef54 Pull complete 0B
+ Image valkey/valkey:9.1.2 Pulled 
+ Network aka-av Creating 
+ Network aka-av Creating 
+ Network s2vecgen_default Creating 
+ Network s2vecgen_default Creating 
+ Volume s2vecgen_valkey-data Creating 
+ Volume s2vecgen_valkey-data Creating 
+ Volume s2vecgen_valkey-data Created 
+ Volume s2vecgen_valkey-data Created 
+ Network aka-av Created 
+ Network aka-av Created 
+ Network s2vecgen_default Created 
+ Network s2vecgen_default Created 
+ Container s2vecgen-valkey-1 Creating 
+ Container s2vecgen-valkey-1 Created 
+ Container s2vecgen-aka-vecgen-1 Creating 
+ Container s2vecgen-aka-vecgen-1 Created 
+ Container s2vecgen-valkey-1 Starting 
+ Container s2vecgen-valkey-1 Started 
+ Container s2vecgen-valkey-1 Waiting 
+ Container s2vecgen-valkey-1 Healthy 
+ Container s2vecgen-aka-vecgen-1 Starting 
+ Container s2vecgen-aka-vecgen-1 Started 
+ Container s2vecgen-aka-vecgen-1 Waiting 
+ Container s2vecgen-valkey-1 Waiting 
+ Container s2vecgen-valkey-1 Healthy 
+ Container s2vecgen-aka-vecgen-1 Healthy 
+== aka-radius の準備
+client 1 added (name=aka-radius fingerprint=b19b0311fe20b21a9900f04854ef938c4d9e4e3163f0cd20df7574db6a77ab7a not-after=2026-11-27T15:28:29Z)
+ Container s2radius-admin-run-8ccb61ad124c Creating 
+ Container s2radius-admin-run-8ccb61ad124c Created 
+subject:     CN=aka-radius-admin
+dns names:   aka-radius-admin, localhost
+ip:          127.0.0.1
+not before:  2026-10-28T15:23:31Z
+not after:   2036-10-25T15:28:31Z
+fingerprint: 4db0a22353792e6e38b0f14513ac5a1212ca9d0308791421d7f0643b9dd29bc2
+wrote /out/server.pem and /out/server.key
+to apply it to the running admin: docker compose kill -s HUP admin
+redis: 2026/10/29 00:28:31 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:31 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:31 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:32 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:33 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:33 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+redis: 2026/10/29 00:28:33 pool.go:426: redis: connection pool: failed to dial after 5 attempts: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+note: Valkey is not reachable, so the audit log goes to the daily file only: connect to Valkey valkey:6379: dial tcp: lookup valkey on 127.0.0.11:53: no such host
+ Image fluent/fluent-bit:4.2.8 Pulling 
+ 1eed391ea893 Pulling fs layer 0B
+ 4076510954fc Pulling fs layer 0B
+ 2780920e5dbf Pulling fs layer 0B
+ 8224d91da70b Pulling fs layer 0B
+ c172f21841df Pulling fs layer 0B
+ 99515e7b4d35 Pulling fs layer 0B
+ 99ba982a9142 Pulling fs layer 0B
+ d6b1b89eccac Pulling fs layer 0B
+ 2d4d7adf6272 Pulling fs layer 0B
+ 7c12895b777b Pulling fs layer 0B
+ 3214acf345c0 Pulling fs layer 0B
+ 52630fc75a18 Pulling fs layer 0B
+ dd64bf2dd177 Pulling fs layer 0B
+ 338603175377 Pulling fs layer 0B
+ b839dfae01f6 Pulling fs layer 0B
+ ebddc55facdc Pulling fs layer 0B
+ cf397222899a Pulling fs layer 0B
+ bd8962e29291 Pulling fs layer 0B
+ cac2ae0193cb Pulling fs layer 0B
+ dd0d9bfd3bee Pulling fs layer 0B
+ 7cc70dfd88cf Pulling fs layer 0B
+ bdfd7f7e5bf6 Pulling fs layer 0B
+ 5b1b2ecf2483 Pulling fs layer 0B
+ 1a4be5562d92 Pulling fs layer 0B
+ 3214acf345c0 Already exists 0B
+ 2780920e5dbf Already exists 0B
+ c172f21841df Already exists 0B
+ d6b1b89eccac Already exists 0B
+ 7c12895b777b Already exists 0B
+ 52630fc75a18 Already exists 0B
+ dd64bf2dd177 Already exists 0B
+ b839dfae01f6 Already exists 0B
+ ebddc55facdc Already exists 0B
+ 7cc70dfd88cf Downloading 901.3kB
+ 4076510954fc Download complete 0B
+ 7cc70dfd88cf Download complete 0B
+ 1eed391ea893 Download complete 0B
+ 8224d91da70b Download complete 0B
+ c172f21841df Pull complete 0B
+ 1eed391ea893 Pull complete 0B
+ 99515e7b4d35 Download complete 0B
+ 99515e7b4d35 Pull complete 0B
+ 99ba982a9142 Download complete 0B
+ 99ba982a9142 Extracting 1B
+ d6b1b89eccac Pull complete 0B
+ 99ba982a9142 Pull complete 0B
+ 2d4d7adf6272 Downloading 1.049MB
+ 3214acf345c0 Pull complete 0B
+ 2780920e5dbf Pull complete 0B
+ 7c12895b777b Pull complete 0B
+ 52630fc75a18 Pull complete 0B
+ dd64bf2dd177 Pull complete 0B
+ b839dfae01f6 Pull complete 0B
+ ebddc55facdc Extracting 1B
+ 2d4d7adf6272 Downloading 1.049MB
+ ebddc55facdc Pull complete 0B
+ 2d4d7adf6272 Downloading 2.097MB
+ 2d4d7adf6272 Downloading 2.097MB
+ 2d4d7adf6272 Downloading 3.146MB
+ 338603175377 Downloading 1.049MB
+ 2d4d7adf6272 Downloading 4.194MB
+ 338603175377 Downloading 1.049MB
+ 338603175377 Downloading 1.049MB
+ 2d4d7adf6272 Downloading 4.194MB
+ 2d4d7adf6272 Download complete 0B
+ 338603175377 Downloading 2.097MB
+ 338603175377 Downloading 2.097MB
+ 338603175377 Downloading 3.146MB
+ cac2ae0193cb Download complete 0B
+ 338603175377 Downloading 3.146MB
+ 338603175377 Downloading 4.194MB
+ cf397222899a Downloading 1.049MB
+ 338603175377 Downloading 5.243MB
+ dd0d9bfd3bee Download complete 0B
+ cf397222899a Downloading 1.049MB
+ 338603175377 Downloading 5.243MB
+ cf397222899a Downloading 1.049MB
+ 338603175377 Downloading 6.291MB
+ cf397222899a Downloading 1.049MB
+ 338603175377 Downloading 6.291MB
+ cf397222899a Downloading 2.097MB
+ bd8962e29291 Download complete 0B
+ 338603175377 Downloading 7.34MB
+ cf397222899a Downloading 2.097MB
+ 338603175377 Downloading 7.34MB
+ cf397222899a Downloading 2.097MB
+ 338603175377 Downloading 8.389MB
+ cf397222899a Downloading 3.068MB
+ 338603175377 Downloading 9.437MB
+ cf397222899a Download complete 0B
+ 338603175377 Downloading 9.437MB
+ 338603175377 Downloading 10.49MB
+ 1a4be5562d92 Download complete 0B
+ 338603175377 Downloading 10.49MB
+ 5b1b2ecf2483 Downloading 1.049MB
+ 338603175377 Downloading 11.53MB
+ 5b1b2ecf2483 Downloading 1.049MB
+ 338603175377 Downloading 12.58MB
+ 338603175377 Downloading 12.58MB
+ bdfd7f7e5bf6 Download complete 0B
+ 5b1b2ecf2483 Downloading 1.049MB
+ 2d4d7adf6272 Extracting 1B
+ bdfd7f7e5bf6 Pull complete 0B
+ 5b1b2ecf2483 Downloading 1.049MB
+ 338603175377 Downloading 13.63MB
+ 2d4d7adf6272 Pull complete 0B
+ cf397222899a Extracting 1B
+ 5b1b2ecf2483 Downloading 2.097MB
+ 338603175377 Downloading 13.63MB
+ cac2ae0193cb Pull complete 0B
+ dd0d9bfd3bee Extracting 1B
+ bd8962e29291 Pull complete 0B
+ cf397222899a Pull complete 0B
+ 5b1b2ecf2483 Downloading 2.097MB
+ 338603175377 Downloading 14.68MB
+ 7cc70dfd88cf Pull complete 0B
+ 8224d91da70b Pull complete 0B
+ dd0d9bfd3bee Pull complete 0B
+ 1a4be5562d92 Pull complete 0B
+ 338603175377 Downloading 15.73MB
+ 5b1b2ecf2483 Downloading 2.097MB
+ 5b1b2ecf2483 Downloading 2.097MB
+ 338603175377 Downloading 15.73MB
+ 5b1b2ecf2483 Downloading 3.146MB
+ 338603175377 Downloading 16.78MB
+ 5b1b2ecf2483 Downloading 3.146MB
+ 338603175377 Downloading 17.83MB
+ 5b1b2ecf2483 Downloading 3.146MB
+ 338603175377 Downloading 17.83MB
+ 5b1b2ecf2483 Downloading 3.146MB
+ 338603175377 Downloading 18.87MB
+ 5b1b2ecf2483 Downloading 4.194MB
+ 338603175377 Downloading 19.92MB
+ 5b1b2ecf2483 Downloading 4.194MB
+ 338603175377 Downloading 19.92MB
+ 338603175377 Downloading 20.97MB
+ 5b1b2ecf2483 Downloading 4.194MB
+ 5b1b2ecf2483 Downloading 4.194MB
+ 338603175377 Downloading 20.97MB
+ 5b1b2ecf2483 Downloading 5.243MB
+ 338603175377 Downloading 22.02MB
+ 338603175377 Downloading 23.07MB
+ 5b1b2ecf2483 Downloading 5.243MB
+ 5b1b2ecf2483 Downloading 5.243MB
+ 338603175377 Downloading 23.07MB
+ 5b1b2ecf2483 Downloading 6.291MB
+ 338603175377 Downloading 24.12MB
+ 338603175377 Downloading 24.12MB
+ 5b1b2ecf2483 Downloading 6.291MB
+ 5b1b2ecf2483 Downloading 6.291MB
+ 338603175377 Downloading 25.17MB
+ 5b1b2ecf2483 Downloading 6.291MB
+ 338603175377 Downloading 26.21MB
+ 5b1b2ecf2483 Downloading 7.598MB
+ 338603175377 Downloading 26.21MB
+ 5b1b2ecf2483 Download complete 0B
+ 338603175377 Downloading 27.26MB
+ 5b1b2ecf2483 Extracting 1B
+ 338603175377 Downloading 28.31MB
+ 4076510954fc Pull complete 0B
+ 5b1b2ecf2483 Pull complete 0B
+ 338603175377 Downloading 29.36MB
+ 338603175377 Downloading 29.36MB
+ 338603175377 Download complete 0B
+ 338603175377 Extracting 1B
+ 338603175377 Extracting 1B
+ 338603175377 Extracting 1B
+ 338603175377 Extracting 1B
+ 338603175377 Pull complete 0B
+ Image fluent/fluent-bit:4.2.8 Pulled 
+ Container s2radius-fluent-bit-1 Creating 
+ Container s2radius-ap-1 Creating 
+ Container s2radius-valkey-1 Creating 
+ Container s2radius-valkey-1 Created 
+ Container s2radius-admin-1 Creating 
+ Container s2radius-fluent-bit-1 Created 
+ Container s2radius-acct-1 Creating 
+ Container s2radius-auth-1 Creating 
+ Container s2radius-ap-1 Created 
+ Container s2radius-admin-1 Created 
+ Container s2radius-acct-1 Created 
+ Container s2radius-auth-1 Created 
+ Container s2radius-edge-t7-1 Creating 
+ Container s2radius-edge-t42-1 Creating 
+ Container s2radius-edge-t42-1 Created 
+ Container s2radius-edge-t7-1 Created 
+ Container s2radius-ap-1 Starting 
+ Container s2radius-valkey-1 Starting 
+ Container s2radius-fluent-bit-1 Starting 
+ Container s2radius-ap-1 Started 
+ Container s2radius-valkey-1 Started 
+ Container s2radius-valkey-1 Waiting 
+ Container s2radius-valkey-1 Waiting 
+ Container s2radius-valkey-1 Waiting 
+ Container s2radius-fluent-bit-1 Started 
+ Container s2radius-valkey-1 Healthy 
+ Container s2radius-valkey-1 Healthy 
+ Container s2radius-admin-1 Starting 
+ Container s2radius-auth-1 Starting 
+ Container s2radius-valkey-1 Healthy 
+ Container s2radius-acct-1 Starting 
+ Container s2radius-admin-1 Started 
+ Container s2radius-auth-1 Started 
+ Container s2radius-acct-1 Started 
+ Container s2radius-auth-1 Waiting 
+ Container s2radius-acct-1 Waiting 
+ Container s2radius-acct-1 Waiting 
+ Container s2radius-auth-1 Waiting 
+ Container s2radius-auth-1 Healthy 
+ Container s2radius-auth-1 Healthy 
+ Container s2radius-acct-1 Healthy 
+ Container s2radius-edge-t7-1 Starting 
+ Container s2radius-acct-1 Healthy 
+ Container s2radius-edge-t42-1 Starting 
+ Container s2radius-edge-t7-1 Started 
+ Container s2radius-edge-t42-1 Started 
+ Container s2radius-ap-1 Waiting 
+ Container s2radius-acct-1 Waiting 
+ Container s2radius-auth-1 Waiting 
+ Container s2radius-admin-1 Waiting 
+ Container s2radius-edge-t7-1 Waiting 
+ Container s2radius-valkey-1 Waiting 
+ Container s2radius-edge-t42-1 Waiting 
+ Container s2radius-fluent-bit-1 Waiting 
+ Container s2radius-fluent-bit-1 Healthy 
+ Container s2radius-valkey-1 Healthy 
+ Container s2radius-edge-t7-1 Healthy 
+ Container s2radius-auth-1 Healthy 
+ Container s2radius-ap-1 Healthy 
+ Container s2radius-acct-1 Healthy 
+ Container s2radius-edge-t42-1 Healthy 
+ Container s2radius-admin-1 Healthy 
+acct Up 6 seconds (healthy)
+admin Up 7 seconds (healthy)
+ap Up 12 seconds
+auth Up 6 seconds (healthy)
+edge-t42 Up Less than a second
+edge-t7 Up 1 second
+fluent-bit Up 12 seconds
+valkey Up 12 seconds (healthy)
+== RADIUS クライアントと加入者
+added radius client 172.30.250.42 (name edge-t42, trust-stamp true)
+auth and acct use the change from the next packet (no reload needed)
+added radius client 172.30.250.7 (name edge-t7, trust-stamp true)
+auth and acct use the change from the next packet (no reload needed)
+added radius client 172.30.250.100 (name ap-direct, trust-stamp true)
+auth and acct use the change from the next packet (no reload needed)
+S0	PASS	加入者 5・RADIUS クライアント 3（5 3）
+== EAP-AKA・EAP-AKA' の成功
+E1	PASS	EAP-AKA の成功（テナント 42）
+E2	PASS	Accept に Class・VLAN（Tunnel-*）・Session-Timeout
+E3	PASS	EAP-AKA' の成功（ネットワーク名 WLAN）
+== 再同期
+E4	PASS	EAP-AKA の再同期（UE の SQN を上げる）で成功し、再同期の Challenge が 1 回
+E5	PASS	EAP-AKA' の再同期で成功
+== 拒否
+R1	PASS	inactive は拒否（AUTH_SUBSCRIBER_INACTIVE）
+R2	PASS	terminated は拒否（AUTH_SUBSCRIBER_TERMINATED）
+R3	PASS	aka-radius にいない加入者は拒否（AUTH_SUBSCRIBER_NOT_FOUND）
+R4	PASS	R1〜R3 では取得先を呼ばない（aka-vecgen の払い出しのログが増えない）
+R5	PASS	aka-vecgen にいない加入者は取得先が断って拒否（VECTOR_REJECTED）
+R6	PASS	別のテナント（7）のエッジからは拒否（AUTH_POLICY_DENIED）
+R7	PASS	エッジを通さない（刻印のない）要求は拒否（AUTH_STAMP_MISSING）
+R8	PASS	刻印を信頼しないクライアントの刻印は使わずに拒否
+== Accounting
+A1	PASS	Accounting-Response が 4 つ
+usage: [(1, 90, 4294968796, 800)]
+A2	PASS	利用の集計（sessions 1・seconds 90・in 4294968796・out 800）
+A3	PASS	Stop でセッションが消える
+== 運用
+O1	PASS	/sources のクライアント証明書のフィンガープリントが aka-vecgen の登録と一致
+O2	PASS	sources check（本物の aka-vecgen に TLS でつながる）
+O3	PASS	SIGHUP で auth と admin が登録簿を読み直す
+== 遮断器
+O4	PASS	取得先が止まると遮断器が開く（/status が open）
+O5	PASS	30 秒で半開きになり、/status に報告される（開いてから 46 秒ほど）
+O6	PASS	半開きで 3 回成功すると閉じる
+== 続けて 20 回
+O7	PASS	続けて 20 回の EAP-AKA が成功（計 333 ms、eapaka_test の起動を含む）
+== 再起動とバックアップ
+O8	PASS	Valkey と各サーバーを再起動しても認証できる（AOF）
+O9	PASS	バックアップから戻すと後の加入者は消え、認証は続く
+== ログと監査ログ
+O10	PASS	Fluent Bit が auth・acct・admin・aka-vecgen のログをファイルに書く
+O11	PASS	監査ログの日ごとのファイルにコマンドと管理API の操作
+O12	PASS	auth・acct・admin が healthy
+
+== 結果
+S0   PASS  加入者 5・RADIUS クライアント 3（5 3）
+E1   PASS  EAP-AKA の成功（テナント 42）
+E2   PASS  Accept に Class・VLAN（Tunnel-*）・Session-Timeout
+E3   PASS  EAP-AKA' の成功（ネットワーク名 WLAN）
+E4   PASS  EAP-AKA の再同期（UE の SQN を上げる）で成功し、再同期の Challenge が 1 回
+E5   PASS  EAP-AKA' の再同期で成功
+R1   PASS  inactive は拒否（AUTH_SUBSCRIBER_INACTIVE）
+R2   PASS  terminated は拒否（AUTH_SUBSCRIBER_TERMINATED）
+R3   PASS  aka-radius にいない加入者は拒否（AUTH_SUBSCRIBER_NOT_FOUND）
+R4   PASS  R1〜R3 では取得先を呼ばない（aka-vecgen の払い出しのログが増えない）
+R5   PASS  aka-vecgen にいない加入者は取得先が断って拒否（VECTOR_REJECTED）
+R6   PASS  別のテナント（7）のエッジからは拒否（AUTH_POLICY_DENIED）
+R7   PASS  エッジを通さない（刻印のない）要求は拒否（AUTH_STAMP_MISSING）
+R8   PASS  刻印を信頼しないクライアントの刻印は使わずに拒否
+A1   PASS  Accounting-Response が 4 つ
+A2   PASS  利用の集計（sessions 1・seconds 90・in 4294968796・out 800）
+A3   PASS  Stop でセッションが消える
+O1   PASS  /sources のクライアント証明書のフィンガープリントが aka-vecgen の登録と一致
+O2   PASS  sources check（本物の aka-vecgen に TLS でつながる）
+O3   PASS  SIGHUP で auth と admin が登録簿を読み直す
+O4   PASS  取得先が止まると遮断器が開く（/status が open）
+O5   PASS  30 秒で半開きになり、/status に報告される（開いてから 46 秒ほど）
+O6   PASS  半開きで 3 回成功すると閉じる
+O7   PASS  続けて 20 回の EAP-AKA が成功（計 333 ms、eapaka_test の起動を含む）
+O8   PASS  Valkey と各サーバーを再起動しても認証できる（AOF）
+O9   PASS  バックアップから戻すと後の加入者は消え、認証は続く
+O10  PASS  Fluent Bit が auth・acct・admin・aka-vecgen のログをファイルに書く
+O11  PASS  監査ログの日ごとのファイルにコマンドと管理API の操作
+O12  PASS  auth・acct・admin が healthy
+PASS 29 / 29
