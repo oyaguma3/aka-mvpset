@@ -565,6 +565,23 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 - `versions.env` は aka-vecgen と aka-radius だけを更新した（H4）。aka-provisioner・aka-ossbss の CI が契約テストの相手として固定しているのは段階 1 のコミットのままで、段階 3-1 で付け替える。
 - 残したこと: aka-radius の小さな直し（admin が起動のときに Valkey に届かないときのログの `event_id`、lnav の書式の項目、取得先のクライアントの JSON の版。確認事項 N2）は段階 3 の始めに行う。
 
+### 18.7 段階 3 の進め方（2026-10-30 に合意）
+
+| # | 決めたこと |
+|---|---|
+| Q1 | 1 つずつ、次の順に進める: aka-radius の小さな直し（段階 2 で残したもの）→ aka-provisioner 3-1（`/admin/v2` の口の一覧つきの中継、`Idempotency-Key` の必須化、登録簿とピンのファイル、監査ログ、`/status`、契約の試験）→ aka-ossbss 3-1（台帳、aka-provisioner v2 のクライアント、加入者の画面、認可ポリシー、セッション）→ 3-2（一括投入）→ 3-3（突き合わせ、`check_needed`、ダッシュボード）→ 3-4（課金レコード）→ 3-5（両ノードの運用ガイド・README・画面仕様、今の作りの設計概要 `docs/poc/` を消す）→ 検証機の通し → 締め |
+| Q2 | aka-provisioner と aka-ossbss は今の流儀どおり main に直接コミットする。手順ごとに報告してからコミットし、差分の大きい手順は中でコミットを分ける |
+| Q3 | aka-provisioner の CI の契約の試験は、aka-vecgen・aka-radius を `versions.env` の固定のコミットからバイナリでビルドして起動する（今のジョブの形）。許す口の一覧を、同じコミットの下流の OpenAPI と突き合わせる試験を足す |
+| Q4 | aka-ossbss は PoC の DB を移し替えない。スキーマの移行は MVP の新しい起点から作り直し、PoC のスキーマの DB では誤りで起動しない。RadSec の表とテナントの slug・ポートは段階 4 で足す |
+| Q5 | aka-ossbss 3-1 は 1 つの手順のまま、台帳とスキーマ → クライアント → 画面の順にコミットを分ける |
+| Q6 | 管理面の Fluent Bit は aka-provisioner の compose に置き、aka-ossbss（段階 4 で radsec-ca も）は重ね合わせ `compose.fluent-bit.yaml` で送る（データ面の aka-radius と aka-vecgen と同じ形） |
+| Q7 | 課金レコードのファイルの検証の道具は本リポジトリの `verify/charging/`（`gpg`・`unzip`・`sha256sum` だけを使う）。3-4 の終わりの確かめに使う |
+| Q8 | 検証機の通しは段階 3 の終わりに 1 回。5 つのコンテナ（aka-vecgen・aka-radius・aka-provisioner・aka-ossbss・PostgreSQL）を compose で立て、画面の操作（Cloudflare Tunnel と playwright）、個別の登録から認証まで（刻印は `verify/stage2` の radsecproxy）、状態による拒否、一括投入 1 万件の時間、突き合わせ、利用の集計の取り込みと締め（手で動かす）を確かめる。20 万件の規模の試験は段階 6 |
+| Q9 | スケジューラー・締め・日の割り当ては時計を差し替えられる作りにし、試験を実際の日付に依存させない（段階 2 で、固定の時刻で期限を付けた試験が日付の進みで落ちたため） |
+| Q10 | 各手順で決めたことは各ノードの設計概要の「段階 3-x で決めたこと」に書く。締めで `versions.env` の `PROVISIONER_REF`・`OSSBSS_REF` を更新し、本書に段階 3 の結果を書く |
+
+- 段階 3 に入れないもの: aka-provisioner の radsec-ca・エッジへの中継（4-2）、aka-ossbss の RadSec の受け口の管理と中央の整合のループ（4-3・4-4）、radsec-ca・radsec-edge の文書の直し（いずれも段階 4）。
+
 ## 19. 未決・計測待ち
 
 | # | 事項 | 決め方 |
