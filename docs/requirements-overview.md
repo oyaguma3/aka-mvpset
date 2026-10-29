@@ -548,6 +548,23 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 | H6 | aka-radius は手順ごとに feature → develop（squash）。develop → main は段階 2 の終わりに 1 回。D-文書は 2-6 でまとめて改版し、それまでは設計概要を正とする |
 | H7 | 検証機での通しは 2 回（aka-radius 2-2 の後と段階 2 の終わり）。刻印はエッジの代わりの radsecproxy（`verify/r10` のパッチ版、UDP で受けて UDP で送る）で付け、Accounting は radclient で送る（eapaka_test は刻印を付けられず、Accounting も送らないため）。aka-vecgen の暗号化の後に性能を軽く測る |
 
+### 18.6 段階 2 の結果（2026-10-30）
+
+データ面の 2 つのノードを改修し、認証ベクターAPI の契約を 1.0.0 にした。各手順で決めたことは各ノードの設計概要に記録した（aka-vecgen は §8.5・§10.1・§16、aka-radius は §17.1）。
+
+| リポジトリ | 内容 | コミット |
+|---|---|---|
+| 本リポジトリ | 適合試験（`conformance/av-api/`、11 項目）、契約 1.0.0、負荷の道具（`verify/avload/`）、段階 2 の終わりの通し（`verify/stage2/`、29 項目） | `3477e86`・`39d0e28`・`c46af2d`・`2702966`・`6617f8f` |
+| [aka-vecgen](https://github.com/oyaguma3/aka-vecgen) | 2-1（状態、契約への合わせ込み）、2-2（鍵の暗号化と KEK）、2-3（管理API 2.0.0、ピンのファイルと `SIGHUP`、監査ログのファイル）、2-4（運用ガイド、バックアップと戻し） | main `2d48379` |
+| [aka-radius](https://github.com/oyaguma3/aka-radius) | 2-1（1 つのモジュールとコマンド）、2-2（取得先の登録簿とクライアント）、2-3（加入者・刻印・判定の順・重複応答のキャッシュ）、2-4（Accounting と利用の集計）、2-5（管理API の残り、コマンド、監査ログ、healthcheck）、2-6（運用ガイド、D-文書の改版と廃止） | develop の #3〜#13、main `ac2f05a`（#14、merge commit） |
+
+- 検証機での通しは 2 回行った（H7）。1 回目は aka-radius 2-2 の後（EAP-AKA・EAP-AKA'・再同期・遮断器）。2 回目は段階 2 の終わりで、`verify/stage2/` の 29 項目がすべて通った（2026-10-29）。
+- H7 の読み替え: エッジの代わりの radsecproxy は、`verify/r10` のパッチ版ではなく Debian 13 の 1.11.2 をテナントごとに 1 つ使った（刻印を付けるだけで、PartialChain は要らないため。aka-radius の確認事項 M7）。
+- aka-vecgen の暗号化の後の性能は `verify/avload/` で測った（暗号化の前と差がなく、p99 は 6〜77 ms）。
+- 段階 2 の中で見つけて直した不具合: aka-radius の重複応答のキャッシュと RADIUS のライブラリの重複の判定（K16・M11。エッジの再送を捨てていた）、固定の時刻で期限を付ける試験（N1）。
+- `versions.env` は aka-vecgen と aka-radius だけを更新した（H4）。aka-provisioner・aka-ossbss の CI が契約テストの相手として固定しているのは段階 1 のコミットのままで、段階 3-1 で付け替える。
+- 残したこと: aka-radius の小さな直し（admin が起動のときに Valkey に届かないときのログの `event_id`、lnav の書式の項目、取得先のクライアントの JSON の版。確認事項 N2）は段階 3 の始めに行う。
+
 ## 19. 未決・計測待ち
 
 | # | 事項 | 決め方 |
