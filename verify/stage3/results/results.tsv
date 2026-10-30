@@ -1,0 +1,81 @@
+I1	PASS	aka-radius の sources check が aka-vecgen につながる
+I2	PASS	aka-provisioner の check-downstream が 2 つの下流につながる
+I3	PASS	aka-ossbss の check-provisioner がつながる
+I4	PASS	全部のコンテナが動き、unhealthy がない
+I5	PASS	aka-ossbss と PostgreSQL と cloudflared はホストにポートを公開しない
+I6	PASS	PIN のファイルと KEK が UID 65532 の 600（ガイドのとおり）
+C0	PASS	ログインしていない要求は Access のログインへ送られる（302）
+C1	PASS	Tunnel の接続が 4 本（4）
+C2	PASS	JWT なしの直接の要求は 401
+C3	PASS	/healthz は JWT なしで 200
+C4	PASS	監査ログの接続元が Docker のアドレスでない
+C5	PASS	無効のアカウントは 403 の文（403）
+C5b	PASS	有効に戻すと次の要求から使える（200）
+C6	PASS	Access 越しでも A は課金レコードを開けない（403）
+C7	PASS	A は自分のテナントの加入者を開け、外部の番号が出ない
+C8	PASS	A は登録の画面を開けない（403）
+C9	PASS	C は課金レコードを見られるが締められない
+C10	PASS	ログアウトの後は Access のログインに戻る（Access）
+C11	PASS	AUD が合わなければ 401 の文（401）
+C12	PASS	Access の公開鍵を取れなければ 503 の文（503）
+C13	PASS	設定を戻すと画面が戻る（200）
+U1	PASS	ダッシュボードに役割「システム管理者」が出る
+U2	PASS	ダッシュボードに aka-provisioner と下流の状態が出る
+U3	PASS	テナント 1 を作れた（ID が刻印の値）
+U4	PASS	外部の顧客番号を保存できる
+U5	PASS	アカウントを作れる
+U6	PASS	詳細に Ki・OPc が出ない
+U7	PASS	回線の外部の番号を保存できる
+U8	PASS	一覧に 3 件出る
+U9	PASS	認可ポリシーを保存できる
+E1	PASS	画面で登録した加入者の EAP-AKA が通る（刻印はテナント 1）
+E2	PASS	EAP-AKA' が通る
+E3	PASS	再同期で通る
+E4	PASS	SSID が認可ポリシーと違えば拒否
+E5	PASS	別のテナントのエッジからは拒否
+E6	PASS	画面で radius 側を止めると拒否
+E7	PASS	画面で vecgen 側を止めると拒否（取得先が断る）
+E8	PASS	両方を戻すと通る
+A1	PASS	Accounting の Start と Interim に応答がある
+A2	PASS	利用の集計がテナント 1 の刻印で手の計算と合う（[(1, 90, 4294968796, 800)]）
+A3	PASS	セッションの画面に IMSI とテナントの絞り込みで出る
+S-radius-active	PASS	画面で radius 側を active にする（radius 側（aka-radius）を「利用中」にしました。）
+S-radius-inactive	PASS	画面で radius 側を inactive にする（radius 側（aka-radius）を「停止中」にしました。）
+S-vecgen-active	PASS	画面で vecgen 側を active にする（vecgen 側（aka-vecgen）を「利用中」にしました。）
+S-vecgen-inactive	PASS	画面で vecgen 側を inactive にする（vecgen 側（aka-vecgen）を「停止中」にしました。）
+B1	PASS	vecgen 側の 1 万件が完了（completed|10000|68 秒）
+B2	PASS	radius 側の 1 万件が完了（completed|10000|65 秒）
+B3	PASS	一括投入の加入者が通る（EAP-AKA）
+B4	PASS	一括投入の加入者が通る（EAP-AKA'）
+B5	PASS	同じファイルの投入し直しは全部「既にある」で下流を呼ばない（0/10000/completed）
+B6	PASS	下流が止まると自動で中断する（interrupted/574/2412）
+B7	PASS	同じファイルで残りだけ処理される（completed/2426/574/0/3000）
+K1	PASS	状態のずれ 5 件を自動で直す（completed|5|5|5|0.4）
+K2	PASS	1001 件は上限を超えるので何も直さず保留（held|1001|0|1001|0.4）
+K3	PASS	承認すると直す（completed|1001|1001|1001|7.3）
+K4	PASS	台帳の radius 側の停止中が 1,006 件（1006）
+K5	PASS	台帳にない IMSI を取り込める（1/inactive）
+K6	PASS	台帳にない IMSI を下流から削除できる（404）
+M1	PASS	PGP の公開鍵（Curve25519）を登録できる
+M2	PASS	Cloudflare 越しにダウンロードしたファイルが verify-file.py を通る（charging_202609_000001_v1.zip.pgp）
+M3	PASS	行 13004 件。A の利用（in 4294968796・out 800・1 回）と外部の番号が手の計算と合う（usage_complete=true）
+M4	PASS	作り直しで版が上がり、同じ通し番号で通る（charging_202609_000001_v2.zip.pgp）
+M5	PASS	ダウンロードは毎回監査ログに残る（2）
+O1	PASS	1 つの操作をトレースID で全ノードの記録からたどれる
+O2	PASS	Fluent Bit のファイル（管理面 5・データ面 6）に書かれる
+O3	PASS	監査ログの日ごとのファイル（4 ノード）がある
+O4	PASS	aka-ossbss の監査ログのファイルに鍵が出ていない
+O5	PASS	DB が止まると 503 の文（503）
+O6	PASS	DB が戻ると画面が戻る（200）
+O7	PASS	aka-provisioner が止まるとダッシュボードに出る（200）
+O8	PASS	下流に届かない操作の文: radius 側（aka-radius）の状態の変更の結果が分かりませんでした（aka-provisioner か下流が応答しませんでした）。結果を確かめています。しばらくしてから
+O9	PASS	結果が分からない操作は印が立つ（t）
+O10	PASS	詳細を開くと読み直す（200）
+O11	PASS	aka-provisioner が戻ると印が下りる（false/active）
+O12	PASS	下流に届かない操作の文: radius 側（aka-radius）の状態の変更の結果が分かりませんでした（aka-provisioner か下流が応答しませんでした）。結果を確かめています。しばらくしてから
+O13	PASS	下流が戻ると詳細を開ける（200）
+O14	PASS	下流が戻ると印が下りる（false/active）
+O15	PASS	aka-provisioner の Valkey のバックアップと戻しの後も下流につながる（2）
+O16	PASS	締めより前の写しに戻すと締めが消える（0）
+O17	PASS	戻した後に突き合わせを動かせる（completed|0|0|0|0.4）
+O18	PASS	締め直すと同じ通し番号のファイルができる（ガイドの 11.2 のとおり）

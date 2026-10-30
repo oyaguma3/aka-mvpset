@@ -1,0 +1,58 @@
+# 段階 3 の通し（verify/stage3）で aka-radius の compose に重ねる設定。パスは aka-radius の deployments/ から見たもの。
+# エッジの代わり（radsecproxy）はテナントの ID を刻印に付ける。テナントの ID は aka-ossbss が 1 から割り当てる。
+services:
+  # radsecproxy は起動のときに上流の名前を IP に引いたまま使うので、auth と acct を再起動しても同じ IP にする
+  auth:
+    networks:
+      default:
+        ipv4_address: 172.30.250.11
+  acct:
+    networks:
+      default:
+        ipv4_address: 172.30.250.12
+  edge-t1:
+    image: stage2-tools:dev
+    command: ["radsecproxy", "-f", "-c", "/etc/radsecproxy.conf"]
+    volumes:
+      - ../../tools/edge-t1.conf:/etc/radsecproxy.conf:ro
+    depends_on:
+      auth:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "127.0.0.1:11812:1812/udp"
+      - "127.0.0.1:11813:1813/udp"
+    networks:
+      default:
+        ipv4_address: 172.30.250.101
+  edge-t2:
+    image: stage2-tools:dev
+    command: ["radsecproxy", "-f", "-c", "/etc/radsecproxy.conf"]
+    volumes:
+      - ../../tools/edge-t2.conf:/etc/radsecproxy.conf:ro
+    depends_on:
+      auth:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "127.0.0.1:21812:1812/udp"
+      - "127.0.0.1:21813:1813/udp"
+    networks:
+      default:
+        ipv4_address: 172.30.250.102
+  # radclient を動かす AP の役（Accounting）
+  ap:
+    image: stage2-tools:dev
+    networks:
+      default:
+        ipv4_address: 172.30.250.100
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.250.0/24
