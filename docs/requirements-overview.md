@@ -600,6 +600,27 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 - 段階 3 の中で見つけて直した不具合: 画面の表示とキーの扱いと監査ログの範囲（V1〜V9）、不安定な試験（P1・V10）、中断のログの `event_id`（W1）。テナント管理者の監査ログに外部の番号が見えていたものは V5 で直した。
 - 残したこと: aka-provisioner の radsec-ca・エッジへの中継（4-2）、aka-ossbss の RadSec の受け口の管理と中央の整合のループ（4-3・4-4）、radsec-ca・radsec-edge の文書の直し（いずれも段階 4）、実際の VPS と WireGuard の配置、秘密の値の一覧の表、VPS を失ったときの手順、RPO と RTO（段階 5）、20 万件の規模の試験（段階 6）。
 
+### 18.9 段階 4 の進め方（2026-10-31 に合意）
+
+| # | 決めたこと |
+|---|---|
+| S4-1 | 1 つずつ、次の順に進める: 4-0 radsec-ca（持ち込みの CA、CRL の取り直しと配布、`group-client`、ピンのファイル）→ 4-1a radsec-edge（パッチ版 radsecproxy のイメージ、スキーマ、設定の生成: 刻印、グループ、共通のブロック、CA ごとの CRL、送信元の範囲、ポートの範囲）→ 4-1b radsec-edge（管理API 9447、OpenAPI、`EDGE_MODE=managed`、管理モードの画面を読むだけにする）→ 4-2 aka-provisioner（`ca`・`edges` の登録簿と中継、`/status`、契約の試験）→ 4-3 aka-ossbss（エッジの台帳、テナントの RadSec の設定と配置、AP・グループ、持ち込みの CA、権限、移行 `0005`、課金の数量）→ 4-4 aka-ossbss（中央の整合のループ、1 台ずつの反映）→ 4-5（運用ガイド、画面仕様、README の RadSec の部分）→ 検証機の通し → 長い時間の試験 → 締め。radsec-ca は radsec-edge の 4-1 と同時（radsec-ca の設計概要 §19.7）ではなく先に行う（エッジの試験で CA ごとの CRL と `group-client` の実物を使えるため） |
+| S4-2 | 段階 4 に回した radsec-edge・radsec-ca の文書の直しと、決定事項 14・25・27・28 の本文への反映は、4-0 と 4-1a の最初のコミットで行う |
+| S4-3 | ピンは `CA_ADMIN_CLIENTS_FILE`・`EDGE_ADMIN_CLIENTS_FILE` と `SIGHUP` にし、環境変数 `CA_ADMIN_CLIENTS`・`EDGE_ADMIN_CLIENTS` はなくす（同じ識別名に新旧 2 つ。サーバー証明書も読み直す）。監査ログは DB のまま日ごとの JSONL も足す。radsec-ca のログは管理面の Fluent Bit に重ね合わせで送る（Q6）。加入者の状態の約束（`PUT …/state`）は CA とエッジには当てはめず、`disable` はそのまま |
+| S4-4 | エッジにも Fluent Bit を 1 つ置く（§13）。テナントのコンテナのログの読み方は、4-1b の確認事項で調べて決める。長い時間の試験より前に入れる |
+| S4-5 | 単独モードは残す。グループ、持ち込みの CA、送信元の範囲は管理モードの API だけに足し、単独モードの画面は AP だけのままにする。ポートの範囲とパッチ版のイメージは共通にする。単独モードの刻印は slug のままで、aka-radius は数字の刻印しか読まないため、単独モードと aka-radius の組み合わせは対象外にする。単独モードの E2E は本PoC のまま退行の確かめに残す |
+| S4-6 | `POST /tenants/{id}/apply` は 202 を返して裏で動かし、aka-ossbss は `GET /tenants/{id}` で結果を確かめる（エッジの反映は最大 2 分、aka-provisioner のタイムアウトは最大 30 秒のため） |
+| S4-7 | radsecproxy のイメージは、ビルドのときに GitHub からソースの tar を取って SHA-256 を確かめ、`images/radsecproxy/` のパッチを当てる。タグは `radsec-edge/radsecproxy:1.11.4-pc1`。`verify/r10` のラボはやり直さず、パッチが同じことと、エッジの Docker の結合試験で PartialChain と CRL が通ることを確かめる |
+| S4-8 | aka-provisioner の CI の契約の試験は、段階 3 と同じく固定のコミットからバイナリをビルドして起動する。radsec-ca とエッジ 1 台（agent と本物の Docker）を足し、許す口を全部呼び、口の一覧と OpenAPI を突き合わせる。同じ Docker に 2 台は置けないので（コンテナとポートがぶつかり、整合ループが互いのコンテナを片付ける）、2 台への順の反映は偽の aka-provisioner で試す |
+| S4-9 | 検証機の通しは `verify/stage4/`（`verify/stage3/` を使い回す）。エッジ 2 台はそれぞれ `docker:dind` に置き、`userland-proxy: false`・`live-restore: true` をホストの設定を変えずに効かせる。AP の役は radsecproxy と eapaka_test、画面は Cloudflare を通す。確かめること: AP・グループ・持ち込みの CA、偽の刻印、他のテナントの IMSI の拒否、失効、送信元の範囲、1 台ずつの反映と途中の失敗、エッジを止めたときの切り替え、中央が止まったとき、ずれの自動の修正、課金の数量。段階 3 の 81 項目は、経路が変わる認証と状態の拒否だけをやり直す。決定事項 27 の「E2E が通ること」はこの通しで確かめる。WireGuard と実際の DNS は段階 5 |
+| S4-10 | 業者の実機は使わず、`verify/r10` の模型（Meraki 形・Mist 形）と偽の Dashboard API で確かめ、実物の証明書と API は未確認として残す。Box は用途 `box` のグループを受けるところまでとし、イメージと設定の生成は作らない（§19 の 6 は段階 6 の前に判断する） |
+| S4-11 | 長い時間の試験（§16.4）は `verify/edge-long/`。dind に 150 テナント（1 テナント AP 5 台）を置き、エッジの API を直接呼ぶ台本で動かす。まず 24 時間続け、dockerd の再起動も試す。増え方が大きければ 72 時間に延ばす。締めの前に行う |
+| S4-12 | 課金の数量は、AP・グループ・持ち込みの CA・配置の行を物理削除せず `created_at`・`deleted_at` を持ち、締めのときに月末の時点の数を数える（今の数を数えると 1 日の 0 時〜6 時の変更が混ざるため）。`events.csv` は増やさない。`charging-records.md` §5.3 を改める |
+| S4-13 | radsec-ca・radsec-edge は main に直接、prefix なしの日本語の件名。aka-provisioner・aka-ossbss は今の流儀のまま。手順ごとに確認事項 → 作業 → 報告 → コミットの順にする。決めたことは各設計概要の「段階 4-x で決めたこと」に書く。締めで `versions.env` の `CA_REF`・`EDGE_REF`・`PROVISIONER_REF`・`OSSBSS_REF` を更新し、本書に段階 4 の結果を書き、aka-provisioner・aka-ossbss の題の「（下書き）」を外す。aka-vecgen・aka-radius は変更しない見込み。PartialChain のパッチの upstream への提案は外部への公開なので、締めの後に改めて相談する |
+
+- 検証機の使い分け（2026-10-31 に 2 台目が加わった）: 長い時間の試験は 2 台目（N95・4 コア・11 GB）で動かし、その間も 1 台目で作業と通しを進める。通しでは中央とエッジ 1 台を 1 台目（N100・16 GB）に、もう 1 台のエッジを 2 台目に置く（どちらも dind。S4-9）。2 台の間は Tailscale でつなぎ、エッジから中央へ別の機械を通る経路を段階 4 のうちに確かめる。
+- 段階 4 に入れないもの: 実際の VPS・WireGuard・DNS・監視（段階 5）、20 万件の規模の試験（段階 6）、Box の作り、業者の実機の確認。
+
 ## 19. 未決・計測待ち
 
 | # | 事項 | 決め方 |
