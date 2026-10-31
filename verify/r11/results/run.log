@@ -1,0 +1,60 @@
+sha256:8673e7f1e7762e0b47377d48c108cce1a03cc841be63232d399abfd65fc13679
+X1     自己署名のみ: 両方の CA の CRL が有効で own・vendor が接続 own up=1 vendor up=1
+X2a    自己署名のみ: vendor の CRL の期限が切れた後、読み直す前の既存の接続 own lost=0 vendor lost=0
+X2b    自己署名のみ: 読み直す前の新しい接続 own    受け入れ
+X2c    自己署名のみ: 読み直す前の新しい接続 vendor 拒否
+X3a    自己署名のみ: SIGHUP の後の既存の接続（own は別の CA） own lost=1 vendor lost=1
+X3b    自己署名のみ: SIGHUP の後の新しい接続 own      受け入れ
+X3c    自己署名のみ: SIGHUP の後の新しい接続 vendor   拒否
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsservernew: TLS connection from 127.0.0.1, client vendor, subject CN=vendor-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsserverrd: connection from 127.0.0.1, client own lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ verify error: num=12:CRL has expired:depth=0:CN=vendor-ap
+ tlsserverrd: connection from 127.0.0.1, client vendor lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsserverrd: connection from 127.0.0.1, client own lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ verify error: num=12:CRL has expired:depth=0:CN=vendor-ap
+X1     PartialChain: 両方の CA の CRL が有効で own・vendor が接続 own up=1 vendor up=1
+X2a    PartialChain: vendor の CRL の期限が切れた後、読み直す前の既存の接続 own lost=0 vendor lost=0
+X2b    PartialChain: 読み直す前の新しい接続 own          受け入れ
+X2c    PartialChain: 読み直す前の新しい接続 vendor       拒否
+X3a    PartialChain: SIGHUP の後の既存の接続（own は別の CA） own lost=1 vendor lost=1
+X3b    PartialChain: SIGHUP の後の新しい接続 own            受け入れ
+X3c    PartialChain: SIGHUP の後の新しい接続 vendor         拒否
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsservernew: TLS connection from 127.0.0.1, client vendor, subject CN=vendor-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsserverrd: connection from 127.0.0.1, client own lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ verify error: num=12:CRL has expired:depth=0:CN=vendor-ap
+ tlsserverrd: connection from 127.0.0.1, client vendor lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ tlsservernew: TLS connection from 127.0.0.1, client own, subject CN=own-ap, TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 up
+ tlsserverrd: connection from 127.0.0.1, client own lost
+ tlsservernew: incoming TLS connection from 127.0.0.1
+ verify error: num=12:CRL has expired:depth=0:CN=vendor-ap
+H1     host を 2 行（10.99/16 と 127.0.0.1/32）のブロックに 127.0.0.1 から 受け入れ
+H2     host が 10.99/16 だけのブロックに 127.0.0.1 から（証明書は正しい） 拒否
+Sat Oct 31 10:09:35 2026: sslreadtimeout: SSL: error:0A000126:SSL routines::unexpected eof while reading
+Sat Oct 31 10:09:36 2026: tlsservernew: incoming TLS connection from 127.0.0.1
+Sat Oct 31 10:09:36 2026: verifyconfcert: CN:/^own-ap$/ not matching for host own (CN=vendor-ap)
+Sat Oct 31 10:09:36 2026: tlsservernew: ignoring request, no matching TLS client for 127.0.0.1
+H3     どのブロックも範囲外の送信元に TLS で応じるか（証明書を見せたら 1） 0
+Sat Oct 31 10:09:39 2026: radsecproxy 1.11.4 starting
+Sat Oct 31 10:09:40 2026: tlsservernew: incoming TLS connection from 127.0.0.1
+Sat Oct 31 10:09:40 2026: tlsservernew: ignoring unknown TLS client 127.0.0.1
+S1     同じ Subject の CA a の正当な AP                      受け入れ
+S2     同じ Subject の CA b の正当な AP                      拒否
+S3     CA a の失効した AP                                      拒否
+S4     CA b の失効した AP                                      拒否
+== 結果の終わり
