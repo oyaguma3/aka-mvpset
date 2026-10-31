@@ -607,7 +607,7 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 | S4-1 | 1 つずつ、次の順に進める: 4-0 radsec-ca（持ち込みの CA、CRL の取り直しと配布、`group-client`、ピンのファイル）→ 4-1a radsec-edge（パッチ版 radsecproxy のイメージ、スキーマ、設定の生成: 刻印、グループ、共通のブロック、CA ごとの CRL、送信元の範囲、ポートの範囲）→ 4-1b radsec-edge（管理API 9447、OpenAPI、`EDGE_MODE=managed`、管理モードの画面を読むだけにする）→ 4-2 aka-provisioner（`ca`・`edges` の登録簿と中継、`/status`、契約の試験）→ 4-3 aka-ossbss（エッジの台帳、テナントの RadSec の設定と配置、AP・グループ、持ち込みの CA、権限、移行 `0005`、課金の数量）→ 4-4 aka-ossbss（中央の整合のループ、1 台ずつの反映）→ 4-5（運用ガイド、画面仕様、README の RadSec の部分）→ 検証機の通し → 長い時間の試験 → 締め。radsec-ca は radsec-edge の 4-1 と同時（radsec-ca の設計概要 §19.7）ではなく先に行う（エッジの試験で CA ごとの CRL と `group-client` の実物を使えるため） |
 | S4-2 | 段階 4 に回した radsec-edge・radsec-ca の文書の直しと、決定事項 14・25・27・28 の本文への反映は、4-0 と 4-1a の最初のコミットで行う |
 | S4-3 | ピンは `CA_ADMIN_CLIENTS_FILE`・`EDGE_ADMIN_CLIENTS_FILE` と `SIGHUP` にし、環境変数 `CA_ADMIN_CLIENTS`・`EDGE_ADMIN_CLIENTS` はなくす（同じ識別名に新旧 2 つ。サーバー証明書も読み直す）。監査ログは DB のまま日ごとの JSONL も足す。radsec-ca のログは管理面の Fluent Bit に重ね合わせで送る（Q6）。加入者の状態の約束（`PUT …/state`）は CA とエッジには当てはめず、`disable` はそのまま |
-| S4-4 | エッジにも Fluent Bit を 1 つ置く（§13）。テナントのコンテナのログの読み方は、4-1b の確認事項で調べて決める。長い時間の試験より前に入れる |
+| S4-4 | エッジにも Fluent Bit を 1 つ置く（§13）。テナントのコンテナのログの読み方は、4-1b の確認事項で調べて決める。長い時間の試験より前に入れる。**決めた（§20.3）**: fluentd のログドライバーを、待ち行列と受信バッファーを絞って使う |
 | S4-5 | 単独モードは残す。グループ、持ち込みの CA、送信元の範囲は管理モードの API だけに足し、単独モードの画面は AP だけのままにする。ポートの範囲とパッチ版のイメージは共通にする。単独モードの刻印は slug のままで、aka-radius は数字の刻印しか読まないため、単独モードと aka-radius の組み合わせは対象外にする。単独モードの E2E は本PoC のまま退行の確かめに残す |
 | S4-6 | `POST /tenants/{id}/apply` は 202 を返して裏で動かし、aka-ossbss は `GET /tenants/{id}` で結果を確かめる（エッジの反映は最大 2 分、aka-provisioner のタイムアウトは最大 30 秒のため） |
 | S4-7 | radsecproxy のイメージは、ビルドのときに GitHub からソースの tar を取って SHA-256 を確かめ、`images/radsecproxy/` のパッチを当てる。タグは `radsec-edge/radsecproxy:1.11.4-pc1`。`verify/r10` のラボはやり直さず、パッチが同じことと、エッジの Docker の結合試験で PartialChain と CRL が通ることを確かめる |
@@ -682,3 +682,18 @@ aka-ossbss の役割（テナントユーザー・テナント管理者・運用
 
 確かめていないもの: 実物の業者の証明書と CRL、`PolicyOID` との組み合わせ、Status-Server、IPv6、radsec-edge の設定の生成と agent を通した反映。
 
+
+### 20.3 エッジのテナントのコンテナのログの読み方（2026-10-31、検証機）
+
+道具と詳しい結果は `verify/edge-logs/`。`docker:29.9.2-dind`（`userland-proxy` オフ、`live-restore` オン）に 150 テナント（AP 5 台ずつ）を置き、接続 750 本でログを出した後のエッジの側の合計を比べた。
+
+| 方式 | 合計 | json-file との差 |
+|---|---|---|
+| json-file のみ | 2108 MiB | — |
+| fluentd のログドライバー（データ面のノードと同じ値） | 2811 MiB | +703 MiB |
+| fluentd のログドライバー（待ち行列と受信バッファーを絞る） | 2195 MiB | +87 MiB |
+| json-file を Fluent Bit が tail で読む | 2152 MiB | +44 MiB |
+
+- 既定の値では、ドライバーの待ち行列（`fluentd-buffer-limit`）がコンテナごとに、Fluent Bit の forward の受信バッファーが接続ごとに大きく取られる。1 テナントあたりの増分は約 4.7 MiB で、決定事項 25 の見積もりでは 4 GB で約 135 テナントになり、保証値の 150 を割る。値を絞ると約 0.6 MiB で、約 175 テナントのまま。
+- 絞った fluentd のドライバーを採る（radsec-edge の設計概要 §24.11 の EA14）。`docker logs` は dual logging のキャッシュで読め、`userland-proxy` オフの `localhost` にも届き、`dockerd` の再起動の後も行が届く。tail は root で全コンテナのログを読むマウントが要り、行からテナントも分からない。
+- データ面と管理面のノードはコンテナが少ない（数個）ので、値を変えない。

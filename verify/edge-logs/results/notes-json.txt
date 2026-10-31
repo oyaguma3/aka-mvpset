@@ -1,0 +1,20 @@
+dind=29.9.2 live_restore=true cgroup=v2
+start_seconds=48 running=150
+clients={"connected": 750, "failed": 0, "alive": 750}
+burst={"ok": 1200, "failed": 0, "seconds": 60.0}
+burst_cpu_seconds=11
+idle60s_cpu_seconds=3
+lines_docker_logs=13391 lines_fluent_bit=0
+disk_containers=9MiB
+sample: 2026-10-31T11:55:35.000909716Z Sat Oct 31 11:55:35 2026: clientwr: no status server response, upstream-auth dead?
+sample: 2026-10-31T11:55:35.001123420Z Sat Oct 31 11:55:35 2026: clientwr: no status server response, upstream-acct dead?
+sample: 2026-10-31T11:56:02.003723032Z Sat Oct 31 11:56:02 2026: clientwr: no status server response, upstream-auth dead?
+sample: 2026-10-31T11:56:06.002586848Z Sat Oct 31 11:56:06 2026: clientwr: no status server response, upstream-acct dead?
+sample_up_lines=15
+read_all_seconds=13.6
+restart_started_same=yes established_before=750 established_after=750 running=150
+after_restart_burst={"ok": 400, "failed": 0, "seconds": 20.0}
+after_restart_fb_lines=0->0 up_lines_t011=5
+time="2026-10-31T12:00:38.021016549Z" level=info msg="Completed buildkit initialization"
+time="2026-10-31T12:00:38.024365092Z" level=info msg="Daemon has completed initialization"
+time="2026-10-31T12:00:38.024422327Z" level=info msg="API listen on /var/run/docker.sock"

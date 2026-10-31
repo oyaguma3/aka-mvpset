@@ -1,0 +1,27 @@
+dind=29.9.2 live_restore=true cgroup=v2
+start_seconds=47 running=151
+clients={"connected": 750, "failed": 0, "alive": 750}
+burst={"ok": 1200, "failed": 0, "seconds": 60.0}
+burst_cpu_seconds=13
+idle60s_cpu_seconds=4
+lines_docker_logs=13396 lines_fluent_bit=13450
+disk_containers=8MiB
+sample: 2026-10-31T12:02:56.000354530Z Sat Oct 31 12:02:56 2026: clientwr: no status server response, upstream-auth dead?
+sample: 2026-10-31T12:02:58.001597774Z Sat Oct 31 12:02:58 2026: clientwr: no status server response, upstream-acct dead?
+sample: 2026-10-31T12:03:24.001664409Z Sat Oct 31 12:03:24 2026: clientwr: no status server response, upstream-auth dead?
+sample: 2026-10-31T12:03:25.001033907Z Sat Oct 31 12:03:25 2026: clientwr: no status server response, upstream-acct dead?
+sample_up_lines=15
+read_all_seconds=13.5
+fb_down_burst={"ok": 600, "failed": 0, "seconds": 30.0}
+fb_down_running=150
+fb_down_up_lines_t001=5
+fb_down_recreate=ok
+fb_down_restart=ok
+fb_down_t002_state=running
+fb_lines_before_down=13636 fb_lines_after_recover=18084 docker_lines_now=18220 t004_lines=137
+restart_started_same=yes established_before=740 established_after=740 running=150
+after_restart_burst={"ok": 400, "failed": 0, "seconds": 20.0}
+after_restart_fb_lines=18667->21436 up_lines_t011=5
+time="2026-10-31T12:10:12.653035235Z" level=info msg="Completed buildkit initialization"
+time="2026-10-31T12:10:12.656238545Z" level=info msg="Daemon has completed initialization"
+time="2026-10-31T12:10:12.656288582Z" level=info msg="API listen on /var/run/docker.sock"
