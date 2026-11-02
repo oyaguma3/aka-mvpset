@@ -1,0 +1,18 @@
+# 段階 4 の通し（verify/stage4）で radsec-ca に重ねる設定。製品に試し用の口は足さず、偽の Dashboard API へ環境変数で向ける（確認事項 S9-6）。
+# 実物の Meraki の API は使わない。CA_BROUGHT_CRL_ALLOW_PRIVATE は本番では使わない設定である。
+services:
+  radsec-ca:
+    environment:
+      CA_BROUGHT_CRL_ALLOW_PRIVATE: "true"
+      # distroless でも Go の crypto/x509 はこの環境変数を読む。偽の Dashboard API のサーバー証明書の CA だけを信頼させる。
+      SSL_CERT_FILE: /fake/ca.pem
+    volumes:
+      - ${S4_FAKE_DIR:?}/ca.pem:/fake/ca.pem:ro
+  fake-dashboard:
+    image: python:3.13.9-slim
+    restart: unless-stopped
+    command: ["python", "-I", "/fake/fake_dashboard.py"]
+    environment:
+      FAKE_API_KEY: ${S4_FAKE_API_KEY:?}
+    volumes:
+      - ${S4_FAKE_DIR:?}:/fake:ro

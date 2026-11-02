@@ -1,0 +1,174 @@
+I1	PASS	aka-radius の sources check が aka-vecgen につながる
+I2	PASS	aka-provisioner の check-downstream が 5 つの下流につながる（5）
+I3	PASS	aka-ossbss の check-provisioner がつながる
+I4	PASS	中央とデータ面の全部のコンテナが動き、unhealthy がない
+I5	PASS	エッジ 2 台は dind で動き、userland-proxy オフ・live-restore オン。公開は Tailscale のアドレスだけ
+C0	PASS	ログインしていない要求は Access のログインへ送られる（302）
+C1	PASS	Tunnel の接続が 4 本（4）
+C2	PASS	JWT なしの直接の要求は 401
+C3	PASS	/healthz は JWT なしで 200
+D1	PASS	登録簿にない ID のエッジは断る（400）
+D2	PASS	エッジ 2 台を台帳に足せる（2）
+D3	PASS	テナント 3 つを有効にでき、ポートは一番小さい空きから（alpha:20000 bravo:20001 charlie:20002）
+D4	PASS	2 台の実物のエッジに宣言・証明書・最初の反映が届く（6 / 6）
+D5	PASS	全テナントの画面に DNS のレコード 8 件が出る（8）
+U1	PASS	画面から加入者を登録できる
+N1	PASS	公開のリゾルバーで 8 件が引ける
+N2	PASS	AP のコンテナから名前が引ける（primary は edge-01、secondary は edge-02）
+N3	PASS	手順書の openssl で primary の名前のサーバー証明書を確かめられる
+N4	PASS	secondary の名前のサーバー証明書も確かめられる
+N5	PASS	エッジの名前では証明書の名前が合わない（AP はスロットの名前を使う）
+P1	PASS	用途 box のグループの証明書を発行できる（    URI:urn:<接頭辞>:grp:alpha:box）
+P2	PASS	登録しただけでは未反映と出る（版 4/0）
+P3	PASS	偽の Dashboard API が 401 なら持ち込みの CA を登録できない（502）
+P4	PASS	Meraki 形の模型の CA を偽の Dashboard API で登録できる（200）
+P5	PASS	CRL なしは了承と照合の形がないと断る（400）
+P6	PASS	Mist 形の模型の CA を CRL なしで登録できる（200）
+P7	PASS	CRL のない CA があるとテナント全体の CRL の確認が止まると画面に出る
+P8	PASS	「反映する」で 2 台の実物に順に届く（6 / 6）
+E1	PASS	AP の証明書で EAP-AKA が通る
+E2	PASS	AP の証明書で EAP-AKA' が通る
+E3	PASS	AP の証明書で再同期が通る
+E4	PASS	グループ（用途 box）の証明書で EAP-AKA が通る
+E5	PASS	グループの証明書で EAP-AKA' が通る
+E6	PASS	Meraki 形の模型（PartialChain）で EAP-AKA が通る
+E7	PASS	Meraki 形の模型で EAP-AKA' が通る
+E8	PASS	Mist 形の模型（CRL なしと照合の形）で EAP-AKA が通る
+E9	PASS	Mist 形の模型で EAP-AKA' が通る
+E10	PASS	持ち込みの CA と同じテナントの、こちらが発行した AP でも通る
+E11	PASS	ルールの NAS-Identifier が AP の名前なら、その AP から通る
+E12	PASS	同じルールでグループからは断られる（グループの NAS-Identifier は AP が送った値）
+E20	PASS	認可ポリシーの NAS-Identifier の候補に登録した AP が出る（alpha-ap01 alpha-box alpha-fakeap）
+E21	PASS	認可ポリシーを画面で保存できる（440100000000003 * corp）
+A1	PASS	Accounting がエッジを通って応答が返る（3 / 3）
+A2	PASS	利用の集計がエッジの刻印（テナント 1）で手の計算と合う（[(1, 1, 90, 4294968796, 800)]）
+X1	PASS	AP が偽の刻印（テナント 2）を付けても、他のテナントの IMSI は断られる
+X2	PASS	偽の刻印はエッジが消して付け直すので、自分のテナントの IMSI は通る
+X3	PASS	他のテナントの IMSI は拒否（AP）
+X4	PASS	他のテナントの IMSI は拒否（Meraki 形の模型）
+X5	PASS	他のテナントの IMSI は拒否（Mist 形の模型）
+X6	PASS	SSID が認可ポリシーと違えば拒否
+X7	PASS	画面で radius 側を止めると拒否
+X8	PASS	画面で vecgen 側を止めると拒否（取得先が断る）
+X9	PASS	両方を戻すと通る
+X10	PASS	Meraki 形の模型の別の組織の AP は TLS で断る（edge-01: REJECT）
+X11	PASS	Mist 形の模型の別の組織の AP は TLS で断る（edge-01: REJECT）
+X12	PASS	Mist 形の模型の CA が出した、照合の形に合わない証明書は断る（edge-01: REJECT）
+X13	PASS	別のテナントの AP の証明書は断る（edge-01: REJECT）
+X14	PASS	比べる基準: 正しい AP の証明書は受ける（同じ確かめ方）（edge-01: ACCEPT）
+S-radius-inactive	PASS	画面で radius 側を inactive にする（radius 側（aka-radius）を「停止中」にしました。）
+S-radius-active	PASS	画面で radius 側を active にする（radius 側（aka-radius）を「利用中」にしました。）
+S-vecgen-inactive	PASS	画面で vecgen 側を inactive にする（vecgen 側（aka-vecgen）を「停止中」にしました。）
+S-vecgen-active	PASS	画面で vecgen 側を active にする（vecgen 側（aka-vecgen）を「利用中」にしました。）
+S1	PASS	範囲の外（別の機械からの Tailscale 越し）は断る（edge-01: REJECT）
+S2	PASS	範囲の内のアドレスから受ける（送信元がエッジの Docker の公開を通っても保たれる）（172.31.94.50: ACCEPT）
+S3	PASS	同じネットワークの範囲の外のアドレスは断る（172.31.94.60: REJECT）
+S4	PASS	範囲の変更は人が押さなくても順に反映する（2 / 2）
+S5	PASS	範囲を空に戻すと受ける（edge-01: ACCEPT）
+Z1	PASS	新しい AP は反映の後に edge-01 に受けられる（edge-01: ACCEPT）
+Z2	PASS	新しい AP は反映の後に edge-02 にも受けられる（edge-02: ACCEPT）
+Z3	PASS	失効させた証明書は CRL の取り直しで edge-01 が断る（反映なし。1 秒）（edge-01: REJECT）
+Z4	PASS	失効させた証明書は edge-02 も断る（edge-02: REJECT）
+Z5	PASS	同じテナントのほかの AP は続けて受ける（edge-01: ACCEPT）
+Z6	PASS	更新した証明書は反映なしでつながる（edge-01: ACCEPT）
+Z7	PASS	更新の間は古い証明書もつながる（edge-01: ACCEPT）
+Z8	PASS	古い証明書を失効させると断る（edge-01: REJECT）
+Z9	PASS	新しい証明書は続けて受ける（edge-02: ACCEPT）
+Z10	PASS	更新した証明書の AP で認証が通る
+Z11	PASS	CRL のないテナントでは、失効させてもこちらが発行した証明書が TLS を通る（画面の警告のとおり）（edge-01: ACCEPT）
+Z12	PASS	AP を削除するとすぐ反映し、断る（edge-01: REJECT）
+Z13	PASS	edge-02 も断る（edge-02: REJECT）
+Z14	PASS	削除した名前の使い回しを断る（409）
+Z15	PASS	比べる基準: Meraki 形の模型の 2 台目の AP が受けられる（edge-01: ACCEPT）
+Z16	PASS	業者の CRL を取り直すと、エッジの定期の取得（5 分以内）で失効した AP を断る（edge-01）（edge-01: REJECT）
+Z17	PASS	edge-02 も断る（edge-02: REJECT）
+Z18	PASS	同じ業者の CA の別の AP は続けて受ける（edge-01: ACCEPT）
+Z20	PASS	期限が近いエッジの証明書を毎日の処理で出し直す
+Z21	PASS	反映の後に古いサーバー証明書とヘルスチェック用の証明書を superseded で失効させる（4 / 4）
+Z22primary	PASS	edge-01 が新しいサーバー証明書で応える
+Z22secondary	PASS	edge-02 が新しいサーバー証明書で応える
+Z23	PASS	更新の後も認証が通る
+H1	PASS	「反映する」のボタンで primary → secondary の順に届く（2 台目が 1 台目を追い越さない）
+H2	PASS	agent を止めた edge-01 の反映は失敗と出る（edge-01:12:failed edge-02:12:ok want=13）
+H3	PASS	途中で失敗すると 2 台目に送らない（edge-02 の版 12 / 求めた版 13）
+H4	PASS	agent が戻っても同じ版を自動でやり直さない（failed:12）
+H5	PASS	「やり直す」で 1 台目、続いて 2 台目に届く（2 / 2）
+H6	PASS	やり直しの後は足した AP が edge-01 につながる（edge-01: ACCEPT）
+H7	PASS	edge-02 にもつながる（edge-02: ACCEPT）
+F1	PASS	edge-01 を止めると AP は secondary に切り替わり認証が続く（1 回目、1 秒）
+F2	PASS	応答は secondary から返っている
+F3	PASS	止めている間も持ち込みの CA の AP は通る
+F4	PASS	ダッシュボードにエッジの切断が出る（200）
+F5	PASS	届かないエッジを飛ばして 2 台目に反映する（6 秒）
+F6	PASS	配置の行に「エッジに届きません」と出る
+F7	PASS	edge-01 が戻ると追いつく（14:ok / 求めた版 14）
+F8	PASS	戻った後は止めている間に足した AP を edge-01 が受ける（edge-01: ACCEPT）
+F9	PASS	中央（aka-ossbss・aka-provisioner・radsec-ca）を止めても認証が通る（AP）
+F10	PASS	中央を止めても認証が通る（持ち込みの CA）
+F11	PASS	中央を戻すと画面が戻る（200）
+F12	PASS	エッジから直接テナントを消しても、ループが証明書から出し直して戻す（消した直後のコンテナ 0、50 秒以内、6 6 False）
+F13	PASS	戻した後は Mist 形の模型の AP を受ける（edge-01: ACCEPT）
+F14	PASS	エッジの宣言を直接変えても、ループが版の違いで送り直す（ok 42s 14 []）
+F15	PASS	エッジにしかないテナントを RADSEC_ORPHAN_TENANT で知らせる（25 秒）
+F16	PASS	エッジにしかないテナントが画面に出る
+F17	PASS	システム管理者が画面で消せる（200。残り 0）
+F18	PASS	データを失ったエッジに宣言と新しい証明書を送り直して反映する（3 / 3。番号が変わる）
+F19	PASS	復旧したエッジが AP を受ける（edge-02: ACCEPT）
+F20	PASS	復旧したエッジが持ち込みの CA の AP を受ける（edge-02: ACCEPT）
+B1	PASS	持ち込みの CA を外すと全配置に順に反映し、その後に radsec-ca で止める（7 秒）
+B2	PASS	止めたことが監査ログ（radsec.brought.disabled、操作者 system）と radsec-ca の監査ログに残る
+B3	PASS	外した後は Mist 形の模型の AP を断る（edge-01）（edge-01: REJECT）
+B4	PASS	edge-02 も断る（edge-02: REJECT）
+B5	PASS	こちらが発行した AP は続けて受ける（edge-01: ACCEPT）
+B6	PASS	CRL のない CA がなくなるとテナント全体の CRL の確認が戻る（1）
+B7	PASS	外した後も発行した AP で認証が通る
+M1	PASS	配置を外すとエッジから消える（1 秒。コンテナ 0）
+M2	PASS	配置が 1 つだけだと警告が出る
+M3	PASS	移動を始めると新しいエッジに同じスロットの配置を足して反映する（2 秒）
+M4	PASS	配置の行に「移動中」と出て、DNS のレコードの表が新しいエッジを指す
+M5	PASS	移動の途中（DNS を書き換える前）は今のエッジで認証が続く
+M6	PASS	公開のリゾルバーで primary.alpha が新しいエッジを指す（<2 台目のアドレス>）
+M7	PASS	AP が名前を引き直すと新しいエッジにつながる
+M8	PASS	移動先のエッジで認証が通る
+M9	PASS	「移動を完了」で古いエッジから消える（1 秒。コンテナ 0）
+M10	PASS	移動を終えた後も認証が通る
+K1	PASS	PGP の公開鍵（Curve25519）を登録できる
+K2	PASS	Cloudflare 越しにダウンロードしたファイルが verify-file.py を通る（charging_202610_000001_v1.zip.pgp）
+K3	PASS	数量（AP・グループ・持ち込みの CA・配置）が手の計算と合い、移動中の配置を 2 と数える
+K4	PASS	RadSec を通した利用が行のファイルまで届く
+G1	PASS	D のダッシュボードに RadSec の欄とエッジが出る（200）
+G2	PASS	D は全テナントの RadSec の画面を開ける（200）
+G3	PASS	D はエッジの一覧を開ける（200）
+G4	PASS	D はエッジの詳細を開ける（200）
+G5	PASS	D は持ち込みの CA を開け、API キーは再表示されない（200）
+G6	PASS	Mist 形の模型の CA の画面（200）
+G10	PASS	C は全テナントの RadSec の画面を開ける（200）
+G11	PASS	C はエッジの一覧を開けるが台帳を変えられない（200）
+G12	PASS	C は持ち込みの CA を見られるが登録できない（200）
+G13	PASS	C はテナントの RadSec を操作できる（200）
+G20	PASS	B は全テナントの RadSec を開けない（403）
+G21	PASS	B はエッジの一覧を開けない（403）
+G22	PASS	B は自分のテナントの RadSec をスロットで見られ、エッジの ID は出ない（200）
+G23	PASS	B は AP を登録できる（200）
+G24	PASS	B は他のテナントの RadSec を開けない（存在を漏らさない 404）（404）
+G25	PASS	B は持ち込みの CA を開けない（403）
+G26	PASS	B は配置を足せない（403）
+G30	PASS	A は自分のテナントの RadSec を見られるが反映できない（200）
+G31	PASS	A は AP の一覧を見られるが登録できない（200）
+G32	PASS	A は他のテナントの AP を開けない（存在を漏らさない 404）（404）
+G33	PASS	A はエッジの一覧を開けない（403）
+G34	PASS	A は反映を求められない（403）
+G40	PASS	接続の状態の部品が読める（200）
+V1	PASS	エッジの管理モードの画面: 使える口は反映のやり直し・CRL の取り直し・再起動・停止と起動だけ。版とコンテナの状態、持ち込みの CA、送信元の範囲、照合の形を読める
+V2	PASS	エッジの管理モードの画面の変更の口（テナント・CA・AP）はサーバーでも 403
+L1	PASS	aka-ossbss のログ（Fluent Bit のファイル）に RADSEC_* が出る
+L2	PASS	ループの操作が監査ログに操作者 system・トレース radsec-* で残る（206）
+L3	PASS	画面とループの操作の監査ログがそろう
+L4	PASS	radsec-ca のログと監査ログのファイルがある
+L5	PASS	Meraki の API キーが aka-ossbss の DB・ログ・監査ログ・radsec-ca の DB の平文に残らない
+L6	PASS	Ki・OPc がログと監査ログに残らない
+L9	PASS	fluentd ドライバーでも last-seen が読める
+L701	PASS	edge-01 の Fluent Bit のファイル（テナントのコンテナと radsec-edge）と監査ログがある
+L702	PASS	edge-02 の Fluent Bit のファイル（テナントのコンテナと radsec-edge）と監査ログがある
+L801	PASS	edge-01 のテナントのコンテナのログドライバーが fluentd
+L802	PASS	edge-02 のテナントのコンテナのログドライバーが fluentd
