@@ -1,0 +1,11 @@
+== dockerd の再起動（live-restore）2026-11-04 01:38:50
+tenants_before=150 connected_before=747 dockerd_rss_kb_before=249060
+dockerd_back_seconds=17 dockerd_rss_kb_after=175292
+started_same=yes
+running_after=150
+connected_after=748 lost_delta=0（接続のし直しの分は closed_by_churn に数え、ここには入らない）
+fluent_bit_lines_delta=463
+after_restart_applied=0 run_status={"t": 1793724356, "tenants_ok": 2, "tenants_err": 0, "status_ok": 0, "status_err": 4, "apply_ok": 0, "apply_ng": 2, "crl_rolled": 1, "tenants_seen_min": 150}
+agent_ok=fluent-bit Up 24 hours;radsec-edge Up 24 hours (healthy);radsec-edge-agent Up 24 hours;
+== 終わり
+agent_restarted_at=1793724445

@@ -1,0 +1,30 @@
+標本 151 件、25.1 時間。増え方は 6 時間以降の直線の傾き（1 日あたり）
+項目                                  始め     6h       終わり        /日
+合計 anon + kernel（MiB）           1854.2  2194.8    2158.6       1.6
+memory.current（MiB）             2310.0  2686.3    2844.4     230.5
+file（MiB）                        360.0   423.6     599.1     221.2
+dockerd PSS（MiB）                 222.7   231.8     226.1      -0.6
+containerd PSS（MiB）                0.0     0.0       0.0       0.0
+containerd-shim PSS（MiB）        1055.6  1263.6    1220.6     -23.2
+radsecproxy PSS（MiB）             333.8   417.0     415.6       0.3
+radsec-edge PSS（MiB）              33.4    32.0      30.5      -0.1
+radsec-edge-age PSS（MiB）          15.9    20.2      16.8      -1.4
+fluent-bit PSS（MiB）               66.1    63.0      60.5      -0.9
+dockerd FD                      2182.0  2167.0    2069.0     -45.8
+dockerd スレッド                      20.0    20.0     104.0      31.1
+containerd FD                      0.0     0.0       0.0       0.0
+containerd スレッド                    0.0     0.0       0.0       0.0
+ディスク containers（MiB）               7.0    29.0      93.0      81.3
+ディスク logs（MiB）                     2.0    34.0     133.0     125.5
+ディスク data（MiB）                     8.0    10.0      15.0       6.8
+
+判定: 合計の増え方 1.6 MiB/日 → 30 MiB/日未満（24 時間で終える）
+memory.current の最大 2876 MiB（目安 2355 MiB = 2.3 GiB）
+AP: {'t': 1793727614, 'connected': 749, 'connects': 98429, 'connect_failed': 10, 'lost': 7452, 'closed_by_churn': 90228, 'sent': 891084, 'received': 891084}
+中央の代わり: {'t': 1793727626, 'tenants_ok': 57, 'tenants_err': 0, 'status_ok': 106, 'status_err': 7, 'apply_ok': 53, 'apply_ng': 4, 'crl_rolled': 6, 'tenants_seen_min': 150}
+上流: {'t': 1793727614, 'status': 626012, 'access': 445542, 'acct': 445541, 'crl_200': 321, 'crl_304': 47999, 'crl_404': 0, 'bad': 0}
+dind の CPU の平均 17.3 %（1 コア = 100 %）
+コンテナ: 149〜150
+接続の最小（10 分目以降）: 741
+Fluent Bit のファイル: 125 MiB/日 → 2 週間で 1.7 GiB（圧縮の前）。dual logging のキャッシュは 150 × 20 MiB = 最大 2.9 GiB
+ログの行: 495387、接続の行: 200505、AP の接続の数: 98429
