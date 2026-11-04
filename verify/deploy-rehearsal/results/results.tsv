@@ -1,0 +1,64 @@
+B-mon	bootstrap.sh が mon で終わる	PASS
+B-data	bootstrap.sh が data で終わる	PASS
+B-mgmt	bootstrap.sh が mgmt で終わる	PASS
+B-edge-01	bootstrap.sh が edge-01 で終わる	PASS
+B-edge-02	bootstrap.sh が edge-02 で終わる	PASS
+B-root	sshd が root を断る設定（PermitRootLogin no）	PASS
+R-render	描き出し	PASS
+B-ssh	作業ユーザー aka で公開のアドレスに SSH で入れる（最初の導入の間）	PASS
+A-mon	apply-host.sh（files wg nft）が mon で終わり、新しい SSH で確かめられる	PASS
+A-data	apply-host.sh（files wg nft）が data で終わり、新しい SSH で確かめられる	PASS
+A-mgmt	apply-host.sh（files wg nft）が mgmt で終わり、新しい SSH で確かめられる	PASS
+A-edge-01	apply-host.sh（files wg nft）が edge-01 で終わり、新しい SSH で確かめられる	PASS
+A-edge-02	apply-host.sh（files wg nft）が edge-02 で終わり、新しい SSH で確かめられる	PASS
+W1	データ面の wg-svc が管理面とエッジ 2 台の 3 つとハンドシェイクする	PASS
+W2	管理面の wg-svc がデータ面とエッジ 2 台の 3 つとハンドシェイクする	PASS
+W3	監視ノードの wg-ops が 4 ノードと ops-pc の 5 つとハンドシェイクする	PASS
+W4	エッジどうしは wg-svc でつながらない（edge-01 → edge-02）	PASS
+W5	監視ノードは中継しない（ops-pc → データ面の wg-ops）	PASS
+W6	監視ノードは中継しない（データ面 → エッジの wg-ops）	PASS
+P1	エッジ → データ面の RADIUS（UDP 1812）	PASS
+P2	エッジ → データ面の RADIUS（UDP 1813）	PASS
+P3	管理面 → データ面の RADIUS は断る	PASS
+P4	管理面 → aka-vecgen の管理API（9443）	PASS
+P5	管理面 → aka-radius の管理API（9444）	PASS
+P6	エッジ → データ面の管理API は断る	PASS
+P7	インターネット → データ面の RADIUS は断る	PASS
+P8	エッジ → 管理面の CRL の配布（8449）	PASS
+P9	データ面 → 管理面の 8449 は断る	PASS
+P10	管理面 → エッジの管理API（9447）	PASS
+P11	データ面 → エッジの管理API は断る	PASS
+P12	インターネットの AP → エッジのテナントのポート（20000）	PASS
+P13	インターネット → エッジの管理API は断る	PASS
+P14	ops-pc → 監視の画面（3000）	PASS
+P15	データ面 → 監視の画面は断る	PASS
+I1	監視ノード → データ面の node_exporter（9100、wg-ops）	PASS
+I2	インターネット → データ面の 9100 は断る	PASS
+I3	インターネット → データ面の SSH は断る（最初の導入の間も、手元のアドレス以外）	PASS
+I4	エッジ → データ面の SSH（wg-svc）は断る	PASS
+S1	手元 → aka-data（ops-pc → 監視ノード → wg-ops）で aka として入れる	PASS
+S2	手元 → aka-edge-02 も同じ経路で入れる	PASS
+R-render	描き出し	PASS
+N1	確かめる前は、手元から公開のアドレスへの SSH が断られる	PASS
+N2	確かめがないので 60 秒で前の規則に戻り、また入れる	PASS
+R-render	描き出し	PASS
+C-mon	mon に wg-ops を通して送り、確かめられる	PASS
+C-data	data に wg-ops を通して送り、確かめられる	PASS
+C-mgmt	mgmt に wg-ops を通して送り、確かめられる	PASS
+C-edge-01	edge-01 に wg-ops を通して送り、確かめられる	PASS
+C-edge-02	edge-02 に wg-ops を通して送り、確かめられる	PASS
+C1	閉じた後は、公開のアドレスへの SSH が断られる	PASS
+C2	閉じた後も、wg-ops を通して入れる	PASS
+G1	ops-pc の pull.sh が 5 ノードから取りに行ける	PASS
+G2	取ったものが ops-pc の data/<ノード>/ にある	PASS
+G3	pull は書けない（rrsync -ro）	PASS
+G4	pull はシェルを動かせない	PASS
+G5a	pull の踏み台の転送で各ノードの 22 番には届く	PASS
+G5	pull の踏み台の転送は各ノードの 22 番だけ（9100 は断る）	PASS
+M1	描き出した prometheus.yml と rules.yml が promtool の検査を通る	PASS
+M2	alertmanager.yml が amtool の検査を通る	PASS
+M3	監視の compose が起動し healthy になる	PASS
+M4	Grafana が応え、ダッシュボード「aka-mvpset の概要」が置かれる	PASS
+M5	textfile.sh がコンテナの状態を書く	PASS
+M6	Prometheus が textfile の数値を読む	PASS
+M7	止めたコンテナの警告が Slack の形で届く（ContainerNotRunning）	PASS
