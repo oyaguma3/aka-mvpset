@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# /etc/nftables.d/aka.nft を当てる。60 秒の内に aka-nft-confirm が動かなければ、前の表 inet aka に戻す（閉め出されたときのため）。
+set -euo pipefail
+new=/etc/nftables.d/aka.nft
+prev=/run/aka-nft.prev
+ok=/run/aka-nft.ok
+nft -c -f "$new"
+{ echo 'table inet aka'; echo 'delete table inet aka'; nft list table inet aka 2> /dev/null || true; } > "$prev"
+rm -f "$ok"
+nft -f "$new"
+echo "当てた。60 秒の内に、新しい SSH の接続で sudo aka-nft-confirm を動かす（動かさなければ戻す）。"
+# SSH の接続が切れても残るよう、別のセッションで待つ
+setsid sh -c "sleep 60; [ -e '$ok' ] || { nft -f '$prev' && logger -t aka-nft '確かめがないので前の規則に戻した'; }" < /dev/null > /dev/null 2>&1 &

@@ -1,0 +1,7 @@
+[Unit]
+Description=aka: 外形監視（docs/deployment.md §9.4）
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/aka-probe/probe.sh run

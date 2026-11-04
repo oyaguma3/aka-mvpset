@@ -1,0 +1,8 @@
+[Unit]
+Description=aka: バックアップを取り、ログと一緒に /srv/aka-pull に置く（docs/deployment.md §10）
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/aka/backup.sh
+TimeoutStartSec=1h

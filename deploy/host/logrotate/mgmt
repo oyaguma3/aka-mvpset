@@ -1,0 +1,12 @@
+# aka-provisioner の運用ガイドの logrotate の例と同じ（管理面の Fluent Bit のファイル。aka-ossbss・radsec-ca のログも入る）
+/opt/aka-provisioner/logs_on_host/*.log {
+	daily
+	rotate 14
+	compress
+	delaycompress
+	missingok
+	notifempty
+	create 0644 root root
+	dateext
+	dateformat -%Y%m%d
+}

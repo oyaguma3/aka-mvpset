@@ -1,0 +1,3 @@
+#!/bin/sh
+# aka-nft-apply で当てた規則を残す（docs/deployment.md §4）。
+touch /run/aka-nft.ok && echo "規則を残す。"

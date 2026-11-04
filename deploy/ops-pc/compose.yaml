@@ -1,0 +1,14 @@
+# ops-pc（docs/deployment.md §11）。検証機の 2 台目の ~/aka-work/ops-pc に置く。
+# state/ に WireGuard と pull の鍵（ここから出さない）と描き出した設定、data/ に取りに行ったログとバックアップ。
+name: ops-pc
+services:
+  ops-pc:
+    build: .
+    image: aka-ops-pc:dev
+    container_name: ops-pc
+    restart: unless-stopped
+    cap_add: [NET_ADMIN]
+    devices: [/dev/net/tun]
+    volumes:
+      - ./state:/state
+      - ./data:/data

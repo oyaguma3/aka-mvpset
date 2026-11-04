@@ -1,0 +1,12 @@
+# aka-radius の運用ガイドの logrotate の例と同じ（Fluent Bit のファイル。aka-vecgen のログも入る）
+/opt/aka-radius/deployments/logs_on_host/*.log {
+	daily
+	rotate 14
+	compress
+	delaycompress
+	missingok
+	notifempty
+	create 0644 root root
+	dateext
+	dateformat -%Y%m%d
+}

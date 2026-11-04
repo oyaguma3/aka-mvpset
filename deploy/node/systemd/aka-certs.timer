@@ -1,0 +1,9 @@
+[Unit]
+Description=aka: 証明書の期限を 1 時間ごとに書く
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=1h
+
+[Install]
+WantedBy=timers.target

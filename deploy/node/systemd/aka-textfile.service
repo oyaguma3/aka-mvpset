@@ -1,0 +1,7 @@
+[Unit]
+Description=aka: 数値を node_exporter の textfile collector に書く（docs/deployment.md §9.2）
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/aka/textfile.sh

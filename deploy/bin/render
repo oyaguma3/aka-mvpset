@@ -1,0 +1,428 @@
+#!/usr/bin/env python3
+"""inventory.env から、各ノードに置く設定（WireGuard、nftables、systemd、監視の対象など）を描き出す。
+
+使い方: deploy/bin/render <inventory.env> <出力のディレクトリ>
+出力: <出力>/<ノード>/ にホストのパスのままのファイル（apply-host.sh が /etc などへ置く）、
+      <出力>/ops-pc/（監視用の PC の役）、<出力>/ssh_config（手元の ~/.ssh/config から Include する）。
+秘密鍵は描き出さない（WireGuard の秘密鍵は各ノードの /etc/wireguard/<if>.key を PostUp で読む）。
+docs/deployment.md の §2〜§5 と確認事項 D1〜D4（概要 §18.11 の後の 5-1）による。
+"""
+import ipaddress
+import pathlib
+import shlex
+import sys
+
+TENANT_PORTS = "20000-21999"
+CENTRAL = ["data", "mgmt"]
+
+
+def load(path):
+    env = {}
+    for raw in pathlib.Path(path).read_text().splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        k, _, v = line.partition("=")
+        parts = shlex.split(v, comments=False) if v else [""]
+        env[k.strip()] = parts[0] if len(parts) == 1 else " ".join(parts)
+    return env
+
+
+def key(name):
+    return name.replace("-", "_")
+
+
+class Inv:
+    def __init__(self, env):
+        self.e = env
+        self.edges = env.get("EDGES", "").split()
+        for e in self.edges:
+            if not e.startswith("edge-"):
+                sys.exit(f"EDGES の名前は edge-NN にする: {e}")
+        self.nodes = CENTRAL + self.edges + ["mon"]
+        for n in self.nodes:
+            self.get("PUB", n)
+            self.get("OPS", n)
+            if n != "mon":
+                self.get("SVC", n)
+        self.get("OPS", "pc")
+        ipaddress.ip_network(self.e["SVC_NET"])
+        ipaddress.ip_network(self.e["OPS_NET"])
+
+    def get(self, prefix, node, required=True):
+        k = f"{prefix}_{key(node)}"
+        v = self.e.get(k, "")
+        if required and not v:
+            sys.exit(f"inventory に {k} がない")
+        return v
+
+    def pub(self, node):
+        return self.get("PUB", node)
+
+    def svc(self, node):
+        return self.get("SVC", node)
+
+    def ops(self, node):
+        return self.get("OPS", node)
+
+    def wgkey(self, iface, node):
+        v = self.e.get(f"WG{iface}_PUB_{key(node)}", "")
+        return v or f"<{node} の {iface.lower()} の公開鍵>"
+
+    def role(self, node):
+        return "edge" if node.startswith("edge-") else node
+
+
+def write(base, rel, text, mode=0o644):
+    p = base / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(text)
+    p.chmod(mode)
+
+
+def wg_conf(inv, node, iface):
+    """wg-svc（ハブなし）と wg-ops（監視ノードがハブ）。つなぎに行く側は Endpoint と PersistentKeepalive を持つ。"""
+    if iface == "svc":
+        port, addr, net = inv.e["SVC_PORT"], inv.svc(node), inv.e["SVC_NET"]
+        if node == "data":
+            peers = [(p, False) for p in ["mgmt"] + inv.edges]
+        elif node == "mgmt":
+            peers = [("data", True)] + [(p, False) for p in inv.edges]
+        else:
+            peers = [("data", True), ("mgmt", True)]
+        ip_of, pubkey = inv.svc, lambda p: inv.wgkey("SVC", p)
+    else:
+        port, addr, net = inv.e["OPS_PORT"], inv.ops(node), inv.e["OPS_NET"]
+        if node == "mon":
+            peers = [(p, False) for p in CENTRAL + inv.edges + ["pc"]]
+        else:
+            peers = [("mon", True)]
+        ip_of, pubkey = inv.ops, lambda p: inv.wgkey("OPS", p)
+    prefix = ipaddress.ip_network(net).prefixlen
+    name = f"wg-{iface}"
+    out = [
+        f"# {name}（{node}）。deploy/bin/render が描き出した。秘密鍵は /etc/wireguard/{name}.key（このノードから出さない）",
+        "[Interface]",
+        f"Address = {addr}/{prefix}",
+        f"ListenPort = {port}",
+        f"PostUp = wg set %i private-key /etc/wireguard/%i.key",
+        "",
+    ]
+    for p, dial in peers:
+        out += ["[Peer]", f"# {p}", f"PublicKey = {pubkey(p)}", f"AllowedIPs = {ip_of(p)}/32"]
+        if dial:
+            out += [f"Endpoint = {inv.pub(p)}:{port}", "PersistentKeepalive = 25"]
+        out.append("")
+    return "\n".join(out)
+
+
+def nft(inv, node):
+    """自分の表 inet aka だけを置く（Docker の表に触れない。D3）。"""
+    role = inv.role(node)
+    svc_port, ops_port = inv.e["SVC_PORT"], inv.e["OPS_PORT"]
+    boot = inv.e.get("BOOTSTRAP_SSH_FROM", "").split()
+    edges_svc = ", ".join(inv.svc(e) for e in inv.edges) or "127.0.0.255"
+    lines = [
+        "#!/usr/sbin/nft -f",
+        f"# aka-mvpset の配置（{node}、役 {role}）。deploy/bin/render が描き出した。docs/deployment.md §4",
+        "# Docker は自分の表（ip filter・ip nat など）を持つので、flush ruleset はしない。この表だけを作り直す。",
+        "table inet aka",
+        "delete table inet aka",
+        "",
+        "table inet aka {",
+        f"\tset svc_edges {{ type ipv4_addr; elements = {{ {edges_svc} }} }}",
+    ]
+    if boot:
+        lines.append(f"\tset bootstrap_ssh {{ type ipv4_addr; elements = {{ {', '.join(boot)} }} }}")
+    lines += [
+        "",
+        "\tchain input {",
+        "\t\ttype filter hook input priority filter; policy drop;",
+        "\t\tiif lo accept",
+        "\t\tct state established,related accept",
+        "\t\tct state invalid drop",
+        "\t\tmeta l4proto icmp icmp type { echo-request, destination-unreachable, time-exceeded } limit rate 10/second accept",
+        "\t\tmeta l4proto ipv6-icmp accept",
+    ]
+    if role != "mon":
+        lines.append(f"\t\tudp dport {svc_port} accept comment \"wg-svc\"")
+    lines.append(f"\t\tudp dport {ops_port} accept comment \"wg-ops\"")
+    lines.append(f"\t\tiifname \"wg-ops\" ip saddr {inv.ops('mon')} tcp dport 9100 accept comment \"node_exporter（Prometheus から）\"")
+    if role == "mon":
+        lines.append(f"\t\tiifname \"wg-ops\" ip saddr {inv.ops('pc')} tcp dport 22 accept comment \"SSH（ops-pc から）\"")
+        lines.append("\t\tiifname { \"docker0\", \"br-*\" } tcp dport 9100 accept comment \"自分の node_exporter（Prometheus のコンテナから）\"")
+    else:
+        lines.append(f"\t\tiifname \"wg-ops\" ip saddr {inv.ops('mon')} tcp dport 22 accept comment \"SSH（監視ノードを踏み台に）\"")
+    if boot:
+        lines.append("\t\ttcp dport 22 ip saddr @bootstrap_ssh accept comment \"最初の導入の間だけ（D4）\"")
+    lines += [
+        "\t}",
+        "",
+        "\t# Docker が公開したポートは DNAT の後に forward を通る。Docker の鎖（priority filter）より先に、元の宛先ポートで絞る。",
+        "\tchain forward {",
+        "\t\ttype filter hook forward priority filter - 1; policy accept;",
+        "\t\tct status dnat jump published",
+        "\t}",
+        "",
+        "\tchain published {",
+        "\t\tct direction reply accept comment \"許した接続への返事\"",
+        "\t\tiifname { \"docker0\", \"br-*\", \"lo\" } accept comment \"ホストの中のコンテナどうし\"",
+    ]
+    if role == "data":
+        lines += [
+            "\t\tiifname \"wg-svc\" ip saddr @svc_edges meta l4proto udp ct original proto-dst { 1812, 1813 } accept comment \"RADIUS（エッジから）\"",
+            f"\t\tiifname \"wg-svc\" ip saddr {inv.svc('mgmt')} meta l4proto tcp ct original proto-dst {{ 9443, 9444 }} accept comment \"管理API（aka-provisioner から）\"",
+        ]
+    elif role == "mgmt":
+        lines.append("\t\tiifname \"wg-svc\" ip saddr @svc_edges meta l4proto tcp ct original proto-dst 8449 accept comment \"CRL の配布（エッジから）\"")
+    elif role == "edge":
+        lines += [
+            f"\t\tiifname \"wg-svc\" ip saddr {inv.svc('mgmt')} meta l4proto tcp ct original proto-dst 9447 accept comment \"エッジの管理API（aka-provisioner から）\"",
+            f"\t\tiifname != {{ \"wg-svc\", \"wg-ops\" }} meta l4proto tcp ct original proto-dst {TENANT_PORTS} accept comment \"テナントの RadSec（インターネットの AP から）\"",
+        ]
+    elif role == "mon":
+        lines.append(f"\t\tiifname \"wg-ops\" ip saddr {inv.ops('pc')} meta l4proto tcp ct original proto-dst {{ 3000, 9090, 9093 }} accept comment \"監視の画面（ops-pc から）\"")
+    lines += [
+        "\t\tcounter drop comment \"ほかの公開ポートへの外からの接続\"",
+        "\t}",
+        "}",
+        "",
+    ]
+    return "\n".join(lines)
+
+
+def docker_dropin(node):
+    units = "wg-quick@wg-ops.service" if node == "mon" else "wg-quick@wg-svc.service wg-quick@wg-ops.service"
+    return (
+        "# WireGuard のアドレスで公開するポートがあるので、Docker は WireGuard の後に起動する（D7）。\n"
+        f"[Unit]\nWants={units}\nAfter={units} nftables.service\n"
+    )
+
+
+def tls_targets(inv, node):
+    """certs.sh が openssl s_client でサーバー証明書の期限を読む口（名前 アドレス:ポート）。"""
+    role = inv.role(node)
+    if role == "data":
+        return [("aka-vecgen-av", "127.0.0.1:8443"), ("aka-vecgen-admin", f"{inv.svc('data')}:9443"), ("aka-radius-admin", f"{inv.svc('data')}:9444")]
+    if role == "mgmt":
+        return [("aka-provisioner", "127.0.0.1:9446")]
+    if role == "edge":
+        return [("radsec-edge-admin", f"{inv.svc(node)}:9447")]
+    return []
+
+
+def export_list(role):
+    """backup.sh が毎日 /srv/aka-pull/logs/<名前>/ に写すディレクトリ（名前 パス）。圧縮した前の日までのものだけを写す。"""
+    return {
+        "data": [
+            ("aka-radius-logs", "/opt/aka-radius/deployments/logs_on_host"),
+            ("aka-radius-audit", "/opt/aka-radius/deployments/audit"),
+            ("aka-vecgen-audit", "/opt/aka-vecgen/audit"),
+        ],
+        "mgmt": [
+            ("aka-provisioner-logs", "/opt/aka-provisioner/logs_on_host"),
+            ("aka-provisioner-audit", "/opt/aka-provisioner/audit"),
+            ("aka-ossbss-audit", "/opt/aka-ossbss/audit"),
+            ("radsec-ca-audit", "/opt/radsec-ca/audit"),
+        ],
+        "edge": [
+            ("radsec-edge-logs", "/var/lib/radsec-edge/logs"),
+            ("radsec-edge-audit", "/var/lib/radsec-edge/audit"),
+        ],
+        "mon": [],
+    }[role]
+
+
+def env_hints(inv, node):
+    role = inv.role(node)
+    h = [f"# {node} の各ノードの .env に入れる値（docs/deployment.md §8）。deploy/bin/render が描き出した。"]
+    if role == "data":
+        a = inv.svc("data")
+        h += [
+            "## /opt/aka-radius/deployments/.env",
+            f"RADIUS_UDP_BIND={a}",
+            f"RADIUS_ADMIN_BIND={a}",
+            "# 管理API のサーバー証明書: admin-cert create -hosts aka-radius-admin," + a,
+            "# RADIUS クライアント（エッジごと）: " + ", ".join(f"{e}={inv.svc(e)}" for e in inv.edges),
+            "## /opt/aka-vecgen/.env",
+            f"VECGEN_ADMIN_PUBLISH={a}:9443",
+            f"VECGEN_ADMIN_TLS_HOSTS=localhost,127.0.0.1,aka-vecgen,{a}",
+        ]
+    elif role == "mgmt":
+        a = inv.svc("mgmt")
+        h += [
+            "## /opt/radsec-ca/.env",
+            f"CA_BIND_ADDR={a}",
+            f"CA_DNS_DOMAIN={inv.e.get('DNS_DOMAIN', '')}",
+            "## /opt/aka-provisioner/downstreams/downstreams.json の url",
+            f"vecgen: https://{inv.svc('data')}:9443/admin/v2",
+            f"radius: https://{inv.svc('data')}:9444/admin/v2",
+            "ca: https://radsec-ca:9448",
+        ] + [f"edge {e}: https://{inv.svc(e)}:9447" for e in inv.edges]
+    elif role == "edge":
+        a = inv.svc(node)
+        h += [
+            "## /opt/radsec-edge/.env",
+            f"EDGE_BIND_ADDR={a}",
+            f"EDGE_TLS_HOSTS={a}",
+            f"EDGE_CRL_BASE_URL=http://{inv.svc('mgmt')}:8449",
+            f"EDGE_AGENT_PUBLISH_ADDR={inv.pub(node)}",
+            f"EDGE_DNS_DOMAIN={inv.e.get('DNS_DOMAIN', '')}",
+            "## aka-ossbss のエッジの台帳の上流",
+            f"認証 {inv.svc('data')}:1812、課金 {inv.svc('data')}:1813",
+        ]
+    else:
+        h += ["## /opt/aka-monitor/.env", f"MON_ADDR={inv.ops('mon')}"]
+    h.append(f"## /opt/aka-node/.env\nNODE_EXPORTER_ADDR={inv.ops(node)}")
+    return "\n".join(h) + "\n"
+
+
+def prometheus(inv):
+    nodes = CENTRAL + inv.edges + ["mon"]
+    targets = "\n".join(f"          - {inv.ops(n)}:9100  # {n}" for n in nodes)
+    relabel = "\n".join(
+        f"      - source_labels: [__address__]\n        regex: '{inv.ops(n)}:9100'\n        target_label: node\n        replacement: {n}"
+        for n in nodes
+    )
+    url = inv.e.get("OSSBSS_URL", "")
+    return f"""# deploy/bin/render が描き出した。docs/deployment.md §9
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+rule_files:
+  - /etc/prometheus/rules.yml
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: [alertmanager:9093]
+scrape_configs:
+  - job_name: node
+    static_configs:
+      - targets:
+{targets}
+    relabel_configs:
+{relabel}
+  - job_name: ossbss-url
+    metrics_path: /probe
+    params:
+      module: [http_reachable]
+    static_configs:
+      - targets: [{url}]
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox:9115
+"""
+
+
+def pull_keys(inv, node):
+    k = inv.e.get("PULL_SSH_KEY", "")
+    opts = 'command="/usr/bin/rrsync -ro /srv/aka-pull",restrict'
+    if node == "mon":
+        # ops-pc は監視ノードを踏み台にして各ノードの pull へ入る（-W の転送は決まった宛先の 22 番だけ）
+        opens = ",".join(f'permitopen="{inv.ops(n)}:22"' for n in CENTRAL + inv.edges)
+        opts += ",port-forwarding," + opens
+    return f"{opts} {k}\n"
+
+
+def sshd_exempt(inv, node):
+    """SSH はどれも 1 つの送信元（監視ノードへは ops-pc、各ノードへは監視ノード）から届く。OpenSSH 10 の PerSourcePenalties が
+    その送信元を締め出すと入口がなくなるので、nftables で絞ってある送信元だけを外す（リハーサルで分かった。docs/deployment.md §3）。"""
+    src = inv.ops("pc") if node == "mon" else inv.ops("mon")
+    return f"# deploy/bin/render が描き出した\nPerSourcePenaltyExemptList {src}\n"
+
+
+def ssh_config_local(inv):
+    ident = inv.e.get("ADMIN_SSH_IDENTITY", "~/.ssh/aka_mvp_ed25519")
+    pc, ctr = inv.e.get("OPS_PC_HOST", "simwifi2"), inv.e.get("OPS_PC_CONTAINER", "ops-pc")
+    out = [
+        "# deploy/bin/render が描き出した。~/.ssh/config から Include する（docs/deployment.md §3）。",
+        "# aka-<ノード>: wg-ops を通す（ops-pc を経由して監視ノードを踏み台に）。aka-<ノード>-pub: 最初の導入の間だけ公開のアドレスへ直接。",
+        "Host aka-*",
+        "    User aka",
+        f"    IdentityFile {ident}",
+        "    IdentitiesOnly yes",
+        "    ServerAliveInterval 30",
+        "",
+        "Host aka-mon",
+        f"    HostName {inv.ops('mon')}",
+        "    ProxyCommand " + inv.e.get("OPS_PC_PROXY", f"ssh {pc} docker exec -i {ctr} nc %h %p"),
+        "",
+    ]
+    for n in CENTRAL + inv.edges:
+        out += [f"Host aka-{n}", f"    HostName {inv.ops(n)}", "    ProxyJump aka-mon", ""]
+    for n in inv.nodes:
+        out += [f"Host aka-{n}-pub", f"    HostName {inv.pub(n)}", ""]
+    return "\n".join(out)
+
+
+def ops_pc(inv, base):
+    out = base / "ops-pc"
+    write(out, "wg-ops.conf", wg_conf_pc(inv))
+    nodes = CENTRAL + inv.edges + ["mon"]
+    cfg = ["# ops-pc の中の pull の SSH（deploy/ops-pc/pull.sh）。deploy/bin/render が描き出した。",
+           "Host aka-*", "    User pull", "    IdentityFile /state/pull_ed25519", "    IdentitiesOnly yes",
+           "    UserKnownHostsFile /state/known_hosts", "    StrictHostKeyChecking accept-new", "",
+           "Host aka-mon", f"    HostName {inv.ops('mon')}", ""]
+    for n in CENTRAL + inv.edges:
+        cfg += [f"Host aka-{n}", f"    HostName {inv.ops(n)}", "    ProxyJump aka-mon", ""]
+    write(out, "ssh_config", "\n".join(cfg))
+    write(out, "nodes.list", "\n".join(nodes) + "\n")
+
+
+def wg_conf_pc(inv):
+    prefix = ipaddress.ip_network(inv.e["OPS_NET"]).prefixlen
+    return "\n".join([
+        "# wg-ops（ops-pc。監視用の PC の役）。deploy/bin/render が描き出した。秘密鍵は /state/wg-ops.key",
+        "[Interface]",
+        f"Address = {inv.ops('pc')}/{prefix}",
+        "PostUp = wg set %i private-key /state/wg-ops.key",
+        "",
+        "[Peer]",
+        "# mon",
+        f"PublicKey = {inv.wgkey('OPS', 'mon')}",
+        f"AllowedIPs = {inv.ops('mon')}/32",
+        f"Endpoint = {inv.pub('mon')}:{inv.e['OPS_PORT']}",
+        "PersistentKeepalive = 25",
+        "",
+    ])
+
+
+def main():
+    if len(sys.argv) != 3:
+        sys.exit(__doc__)
+    inv = Inv(load(sys.argv[1]))
+    base = pathlib.Path(sys.argv[2])
+    base.mkdir(parents=True, exist_ok=True)
+    for n in inv.nodes:
+        role = inv.role(n)
+        d = base / n / "root"
+        write(d, "etc/aka/role", role + "\n")
+        write(d, "etc/aka/node", n + "\n")
+        if role != "mon":
+            write(d, "etc/wireguard/wg-svc.conf", wg_conf(inv, n, "svc"), 0o600)
+        write(d, "etc/wireguard/wg-ops.conf", wg_conf(inv, n, "ops"), 0o600)
+        write(d, "etc/nftables.d/aka.nft", nft(inv, n), 0o755)
+        write(d, "etc/systemd/system/docker.service.d/10-aka-wireguard.conf", docker_dropin(n))
+        write(d, "etc/aka/tls-targets", "".join(f"{a} {b}\n" for a, b in tls_targets(inv, n)))
+        write(d, "etc/aka/export.list", "".join(f"{a} {b}\n" for a, b in export_list(role)))
+        write(d, "etc/aka/pull_authorized_keys", pull_keys(inv, n), 0o644)
+        write(d, "etc/ssh/sshd_config.d/20-aka-wg.conf", sshd_exempt(inv, n))
+        write(d, "opt/aka-node/.env", f"NODE_EXPORTER_ADDR={inv.ops(n)}\n")
+        if role == "mon":
+            write(d, "opt/aka-monitor/prometheus/prometheus.yml", prometheus(inv))
+            write(d, "opt/aka-monitor/.env", f"MON_ADDR={inv.ops('mon')}\n")
+        write(base / n, "env-hints.txt", env_hints(inv, n))
+    ops_pc(inv, base)
+    write(base, "ssh_config", ssh_config_local(inv))
+    missing = [k for k, v in inv.e.items() if k.startswith("WG") and not v]
+    print(f"描き出した: {base}（ノード {' '.join(inv.nodes)}、ops-pc、ssh_config）")
+    if missing:
+        print("まだ公開鍵のないもの（bootstrap.sh の後に貼って描き直す）: " + " ".join(sorted(missing)))
+
+
+if __name__ == "__main__":
+    main()

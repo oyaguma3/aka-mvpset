@@ -1,0 +1,20 @@
+# 外形監視（docs/deployment.md §9.4、確認事項 S5-12）。/opt/aka-probe に置く。スロットごとに radsecproxy を 1 つ動かし、
+# probe.sh（1 分ごと）が eapaka_test で UDP からそれぞれへ EAP-AKA を最後まで通す。
+name: aka-probe
+services:
+  primary:
+    image: aka-probe:${PROBE_VERSION:-dev}
+    restart: unless-stopped
+    command: ["/probe/conf/primary.conf"]
+    ports:
+      - 127.0.0.1:18121:1812/udp
+    volumes:
+      - ./conf:/probe/conf:ro
+  secondary:
+    image: aka-probe:${PROBE_VERSION:-dev}
+    restart: unless-stopped
+    command: ["/probe/conf/secondary.conf"]
+    ports:
+      - 127.0.0.1:18131:1812/udp
+    volumes:
+      - ./conf:/probe/conf:ro

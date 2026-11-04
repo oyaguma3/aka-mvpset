@@ -1,0 +1,10 @@
+[Unit]
+Description=aka: 外形監視を 1 分ごとに動かす
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+AccuracySec=5s
+
+[Install]
+WantedBy=timers.target

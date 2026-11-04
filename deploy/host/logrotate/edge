@@ -1,0 +1,12 @@
+# radsec-edge の運用ガイドの logrotate の例と同じ（Fluent Bit は書き続けるので copytruncate）
+/var/lib/radsec-edge/logs/*.log {
+	daily
+	rotate 14
+	compress
+	delaycompress
+	missingok
+	notifempty
+	copytruncate
+	dateext
+	dateformat -%Y%m%d
+}

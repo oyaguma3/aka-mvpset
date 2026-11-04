@@ -1,0 +1,16 @@
+# 各ノードの node_exporter（docs/deployment.md §9.1）。/opt/aka-node に置き、.env の NODE_EXPORTER_ADDR（wg-ops のアドレス）で待ち受ける。
+name: aka-node
+services:
+  node-exporter:
+    image: prom/node-exporter:v1.12.1
+    restart: unless-stopped
+    network_mode: host
+    pid: host
+    command:
+      - --path.rootfs=/host
+      - --web.listen-address=${NODE_EXPORTER_ADDR:?}:9100
+      - --collector.textfile.directory=/textfile
+      - --no-collector.wifi
+    volumes:
+      - /:/host:ro,rslave
+      - /var/lib/aka-textfile:/textfile:ro

@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+# versions.env のコミットからイメージを手元でビルドし、役ごとの束にする（docs/deployment.md §7、確認事項 D9）。
+#   deploy/bin/build-images <作業ディレクトリ>
+# 出力: <作業>/images/<役>.tar.gz（docker save）、<作業>/images/images.txt（名前と ID）、<作業>/src/<リポジトリ>.tar（/opt に置く中身、git archive）、
+#       <作業>/bin/eapaka_test（外形監視）。VPS では docker load して、各 .env の *_VERSION を下の短いコミットにし、up --no-build で起動する。
+# イメージの名前: compose に image: がないもの（aka-vecgen・aka-ossbss）は compose が付ける <プロジェクト>-<サービス>:latest に合わせる。
+set -euo pipefail
+
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+WORK=${1:?作業ディレクトリ}
+SRC=${AKA_SRC:-$HOME/projects} # 各リポジトリの手元の写し
+mkdir -p "$WORK/build" "$WORK/images" "$WORK/src" "$WORK/bin"
+# shellcheck source=../../versions.env
+. "$ROOT/versions.env"
+s() { echo "${1:0:7}"; }
+
+archive() { # <リポジトリ> <コミット>
+	git -C "$SRC/$1" cat-file -e "$2^{commit}" 2> /dev/null || { echo "$1 に $2 がない（git fetch する）" >&2; exit 1; }
+	git -C "$SRC/$1" archive --format=tar "$2" > "$WORK/src/$1.tar"
+	rm -rf "${WORK:?}/build/$1"
+	mkdir -p "$WORK/build/$1"
+	tar -xf "$WORK/src/$1.tar" -C "$WORK/build/$1"
+}
+build() { # <リポジトリ> <コミット> <タグ> [コンテキストの中のパス]
+	echo "== $1 $(s "$2") → $3"
+	docker build -q --build-arg VERSION="$(s "$2")" -t "$3" "$WORK/build/$1/${4:-.}" > /dev/null
+}
+
+archive aka-vecgen "$VECGEN_REF"
+build aka-vecgen "$VECGEN_REF" aka-vecgen-aka-vecgen:latest
+archive aka-radius "$RADIUS_REF"
+build aka-radius "$RADIUS_REF" "aka-radius:$(s "$RADIUS_REF")"
+archive aka-provisioner "$PROVISIONER_REF"
+build aka-provisioner "$PROVISIONER_REF" "aka-provisioner:$(s "$PROVISIONER_REF")"
+archive aka-ossbss "$OSSBSS_REF"
+build aka-ossbss "$OSSBSS_REF" aka-ossbss-aka-ossbss:latest
+archive radsec-ca "$CA_REF"
+build radsec-ca "$CA_REF" "radsec-ca:$(s "$CA_REF")"
+archive radsec-edge "$EDGE_REF"
+build radsec-edge "$EDGE_REF" "radsec-edge:$(s "$EDGE_REF")"
+build radsec-edge "$EDGE_REF" radsec-edge/radsecproxy:1.11.4-pc1 images/radsecproxy
+
+MV=$(git -C "$ROOT" rev-parse --short=7 HEAD)
+echo "== aka-probe（aka-mvpset $MV）"
+docker build -q -t "aka-probe:$MV" "$ROOT/deploy/probe" > /dev/null
+echo "== eapaka_test（$(git -C "$SRC/eapaka_test" rev-parse --short=7 HEAD)）"
+(cd "$SRC/eapaka_test" && CGO_ENABLED=0 go build -trimpath -o "$WORK/bin/eapaka_test" ./cmd/eapaka_test)
+
+# 公開のイメージは VPS で取り込む（docs/deployment.md §7）。ここではビルドしたものだけを束ねる
+data=(aka-vecgen-aka-vecgen:latest "aka-radius:$(s "$RADIUS_REF")")
+mgmt=("aka-provisioner:$(s "$PROVISIONER_REF")" aka-ossbss-aka-ossbss:latest "radsec-ca:$(s "$CA_REF")")
+edge=("radsec-edge:$(s "$EDGE_REF")" radsec-edge/radsecproxy:1.11.4-pc1)
+mon=("aka-probe:$MV")
+for r in data mgmt edge mon; do
+	declare -n list=$r
+	echo "== 束ねる $r"
+	docker save "${list[@]}" | gzip -1 > "$WORK/images/$r.tar.gz"
+done
+{
+	echo "# deploy/bin/build-images（aka-mvpset $MV、$(date -Is)）。名前 ID"
+	for i in "${data[@]}" "${mgmt[@]}" "${edge[@]}" "${mon[@]}"; do echo "$i $(docker image inspect -f '{{.Id}}' "$i")"; done
+	echo "# *_VERSION: VECGEN=$(s "$VECGEN_REF") RADIUS=$(s "$RADIUS_REF") PROVISIONER=$(s "$PROVISIONER_REF") OSSBSS=$(s "$OSSBSS_REF") CA=$(s "$CA_REF") EDGE=$(s "$EDGE_REF") PROBE=$MV"
+} > "$WORK/images/images.txt"
+cat "$WORK/images/images.txt"

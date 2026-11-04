@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# 描き出した設定と deploy/ の部品をノードに送り、apply-host.sh を動かす（docs/deployment.md §4）。
+#   deploy/bin/push-host <出力のディレクトリ> <ノード> [段 ...]
+# SSH の名前: AKA_SSH（既定 aka-<ノード>。最初の導入の間は aka-<ノード>-pub を渡す）。
+set -euo pipefail
+ROOT=$(cd "$(dirname "$0")/../.." && pwd)
+out=${1:?出力のディレクトリ}
+node=${2:?ノード}
+shift 2
+host=${AKA_SSH:-aka-$node}
+ssh() { command ssh ${AKA_SSH_CONFIG:+-F "$AKA_SSH_CONFIG"} "$@"; } # リハーサルでは別の設定のファイル
+[ -d "$out/$node/root" ] || { echo "$out/$node/root がない（deploy/bin/render を先に）" >&2; exit 1; }
+tar -C "$out/$node" -cf - root env-hints.txt |
+	ssh "$host" 'rm -rf /tmp/aka-deploy && mkdir -p /tmp/aka-deploy && tar -xf - -C /tmp/aka-deploy'
+tar -C "$ROOT/deploy" -cf - host node monitor probe | ssh "$host" 'tar -xf - -C /tmp/aka-deploy'
+# shellcheck disable=SC2029
+ssh -t "$host" "sudo ${AKA_NO_SYSTEMD:+AKA_NO_SYSTEMD=$AKA_NO_SYSTEMD }/tmp/aka-deploy/host/apply-host.sh $*"

@@ -1,0 +1,7 @@
+[Unit]
+Description=aka: 証明書の期限と CRL の次の更新を書く（docs/deployment.md §9.2）
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/aka/certs.sh

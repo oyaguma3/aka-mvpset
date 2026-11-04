@@ -1,0 +1,9 @@
+# 監視ノードの外からの確かめ（docs/deployment.md §9.1）。aka-ossbss の公開のホスト名（Cloudflare Access の手前で 302 か 401）。エッジまでの経路は外形監視（§9.4）で見る。
+modules:
+  http_reachable:
+    prober: http
+    timeout: 10s
+    http:
+      valid_status_codes: [200, 302, 401, 403]
+      no_follow_redirects: true
+      preferred_ip_protocol: ip4

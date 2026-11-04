@@ -1,0 +1,91 @@
+# 警告の規則（docs/deployment.md §9.2、確認事項 D12。概要 §14）。通知は Alertmanager から Slack。
+groups:
+  - name: aka-node
+    rules:
+      - alert: NodeDown
+        expr: up{job="node"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} の node_exporter に届かない（ノードが落ちたか、wg-ops が切れた）"}
+      - alert: DiskFilling
+        expr: (1 - node_filesystem_avail_bytes{fstype!~"tmpfs|overlay|squashfs",mountpoint="/"} / node_filesystem_size_bytes{fstype!~"tmpfs|overlay|squashfs",mountpoint="/"}) > 0.80
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} のディスクが 80% を超えた（{{ $value | humanizePercentage }}）"}
+      - alert: MemoryLow
+        expr: node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes < 0.10
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の使えるメモリーが 10% を切った"}
+      - alert: TextfileStale
+        expr: time() - node_textfile_mtime_seconds{file=~".*aka.prom"} > 300
+        for: 2m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の数値が 5 分より古い（aka-textfile.timer を確かめる）"}
+      - alert: DockerUnreachable
+        expr: aka_docker_up == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} で Docker Engine に届かない"}
+  - name: aka-containers
+    rules:
+      - alert: ContainerNotRunning
+        expr: aka_container_running == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} のコンテナ {{ $labels.container }} が動いていない"}
+      - alert: ContainerUnhealthy
+        expr: aka_container_healthy == 0
+        for: 3m
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} のコンテナ {{ $labels.container }} が healthy でない"}
+      - alert: DockerdRSSHigh
+        expr: aka_process_rss_bytes{process=~"dockerd|containerd",node=~"edge-.*"} > 400 * 1024 * 1024
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の {{ $labels.process }} が 400 MiB を超えた（決定事項 28）"}
+  - name: aka-network
+    rules:
+      - alert: WireGuardHandshakeStale
+        expr: aka_wg_handshake_age_seconds > 180 or aka_wg_handshake_age_seconds < 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} の {{ $labels.interface }} で {{ $labels.peer }} とのハンドシェイクが 180 秒より古い（概要 §14）"}
+      - alert: OssbssUnreachable
+        expr: probe_success{job="ossbss-url"} == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "aka-ossbss の公開のホスト名に届かない（Cloudflare か Tunnel）"}
+  - name: aka-certs
+    rules:
+      - alert: CertExpiring
+        expr: aka_cert_not_after_seconds - time() < 14 * 86400
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の {{ $labels.cert }} の証明書が 14 日の内に切れる"}
+      - alert: CertProbeFailed
+        expr: aka_cert_probe_ok == 0
+        for: 2h
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の {{ $labels.cert }} の証明書を読めない"}
+      - alert: CRLExpiring
+        expr: aka_crl_next_update_seconds - time() < 2 * 86400
+        labels: {severity: critical}
+        annotations: {summary: "{{ $labels.node }} のテナント {{ $labels.tenant }} の CRL（{{ $labels.issuer_hash }}）の次の更新まで 2 日を切った"}
+  - name: aka-backup-probe
+    rules:
+      - alert: BackupMissing
+        expr: time() - aka_backup_last_success_seconds > 26 * 3600
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の {{ $labels.item }} のバックアップが 26 時間ない（RPO 24 時間。S5-14）"}
+      - alert: BackupFailed
+        expr: aka_backup_last_run_failed > 0
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の最後のバックアップで {{ $value }} 項目が失敗した"}
+      - alert: ProbeFailing
+        expr: aka_probe_consecutive_failures >= 3
+        labels: {severity: critical}
+        annotations: {summary: "外形監視が {{ $labels.slot }} で 3 回続けて失敗した（AP → エッジ → aka-radius → aka-vecgen）"}
+      - alert: ProbeStale
+        expr: time() - aka_probe_last_run_seconds > 300
+        labels: {severity: critical}
+        annotations: {summary: "外形監視の結果が 5 分届いていない（{{ $labels.slot }}）"}

@@ -1,0 +1,9 @@
+[Unit]
+Description=aka: 毎日 2:30 にバックアップを取る（aka-ossbss の定期の処理 3:00〜6:00 を避ける）
+
+[Timer]
+OnCalendar=*-*-* 02:30:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target
