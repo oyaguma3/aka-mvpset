@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 最初の導入（docs/deployment.md §3）。作ったばかりの VPS で root として 1 回だけ動かす。
-#   ssh -i <KAGOYA の鍵> root@<公開のアドレス> 'bash -s' -- <ノード> '<作業ユーザーの公開鍵>' < deploy/host/bootstrap.sh
+# 最初の導入（docs/deployment.md §3）。作ったばかりの VPS で root として 1 回だけ動かす。KAGOYA の Debian 13 は
+# ユーザー debian（sudo はパスワードなし）で入る作り（root で入ろうとすると案内の文が返る）。
+#   ssh -i <KAGOYA の鍵> debian@<公開のアドレス> "sudo bash -s -- <ノード> '<作業ユーザーの公開鍵>'" < deploy/host/bootstrap.sh
 # ノードは data・mgmt・mon・edge-NN。やること: 時刻とホスト名、パッケージ、作業ユーザー aka と pull、
 # WireGuard の鍵（秘密鍵はこのノードから出さない。公開鍵を最後に出す）、SSH を鍵だけ・root 不可にする（D4・D5・D7）。
 set -euo pipefail
@@ -32,7 +33,8 @@ apt-get install -y -q --no-install-recommends \
 	logrotate python3 netcat-openbsd systemd-timesyncd
 if [ "$NOSD" != 1 ]; then
 	systemctl enable --now systemd-timesyncd
-	timedatectl set-ntp true
+	# 入れた直後は timedated が timesyncd を知らず「NTP not supported」を返すことがある（KAGOYA の Debian 13 で起きた）。timesyncd は有効にしてある
+	timedatectl set-ntp true 2> /dev/null || true
 fi
 
 echo "== 自動の更新（セキュリティだけ。自動の再起動はしない）"
@@ -89,4 +91,4 @@ for i in $ifaces; do
 	echo "${v}_PUB_$k=$(wg pubkey < "/etc/wireguard/$i.key")"
 done
 echo
-echo "次は手元から ssh aka-$node-pub で入れることを確かめる（root では入れなくなった）。"
+echo "次は手元から ssh aka-$node-pub で入れることを確かめる（root と debian では入れなくなった。AllowUsers aka pull）。"

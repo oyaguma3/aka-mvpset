@@ -14,6 +14,7 @@ import sys
 
 TENANT_PORTS = "20000-21999"
 CENTRAL = ["data", "mgmt"]
+OPS_MTU = 1280  # wg-ops（確認事項 K3）
 
 
 def load(path):
@@ -106,8 +107,11 @@ def wg_conf(inv, node, iface):
         f"Address = {addr}/{prefix}",
         f"ListenPort = {port}",
         f"PostUp = wg set %i private-key /etc/wireguard/%i.key",
-        "",
     ]
+    if iface == "ops":
+        # ops-pc は手元の回線を通るので、既定の 1420 では包んだパケットが経路の MTU を超えて落ちる（確認事項 K3）
+        out.append(f"MTU = {OPS_MTU}")
+    out.append("")
     for p, dial in peers:
         out += ["[Peer]", f"# {p}", f"PublicKey = {pubkey(p)}", f"AllowedIPs = {ip_of(p)}/32"]
         if dial:
@@ -380,6 +384,7 @@ def wg_conf_pc(inv):
         "[Interface]",
         f"Address = {inv.ops('pc')}/{prefix}",
         "PostUp = wg set %i private-key /state/wg-ops.key",
+        f"MTU = {OPS_MTU}",
         "",
         "[Peer]",
         "# mon",

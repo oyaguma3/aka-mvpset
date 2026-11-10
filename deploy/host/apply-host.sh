@@ -80,8 +80,10 @@ step_docker() {
 		apt-get update -q
 		install -d -m 755 /etc/docker
 		install -m 644 "$D/host/daemon.json" /etc/docker/daemon.json
-		DEBIAN_FRONTEND=noninteractive apt-get install -y -q "docker-ce=$DOCKER_VERSION" "docker-ce-cli=$DOCKER_VERSION" containerd.io docker-compose-plugin
-		apt-mark hold docker-ce docker-ce-cli
+		# docker-ce の推奨の docker-ce-rootless-extras も同じ版にする（省くと最新が入る）
+		DEBIAN_FRONTEND=noninteractive apt-get install -y -q "docker-ce=$DOCKER_VERSION" "docker-ce-cli=$DOCKER_VERSION" \
+			"docker-ce-rootless-extras=$DOCKER_VERSION" containerd.io docker-compose-plugin
+		apt-mark hold docker-ce docker-ce-cli docker-ce-rootless-extras
 		usermod -aG docker aka
 	fi
 	if ! cmp -s "$D/host/daemon.json" /etc/docker/daemon.json; then
