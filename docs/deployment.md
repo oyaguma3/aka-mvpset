@@ -34,6 +34,10 @@
 
 [deployment-console.md](deployment-console.md) のとおり、ユーザーが KAGOYA のコントロールパネルで、ログイン用認証キー、セキュリティグループ、インスタンス 5 台を作り、公開のアドレスと鍵のファイルの置き場所を Claude に渡す。DNS のレコードはテナントを置くとき（§8.4）にユーザーが登録する。
 
+- KAGOYA のセキュリティグループは宛先ポートを 1 つしか書けない（範囲は不可）。外向き・内向きを分ける設定もない（2026-11 にユーザーが確かめた）。そのため次のように扱う。
+  - エッジのテナントのポート（TCP 20000〜21999）はセキュリティグループに書かない。エッジはテナントを置く前にセキュリティグループを外し、ホストの nftables だけで守る（確認事項 K1。§8.3）。
+  - インスタンスを作ったら、最初に各ノードで、外向きの通信への応答（apt、名前の解決、HTTPS、WireGuard）が通るかを確かめる。断られていたら、全ノードからセキュリティグループを外す（確認事項 K2。§3）。
+
 ## 3. 最初の導入（各ノード）
 
 1. 手元で作業用の SSH の鍵を作る（初めてのときだけ）。
@@ -48,13 +52,13 @@
    deploy/bin/render "$WORK/inventory.env" "$WORK/out"
    ```
 
-3. 各ノードで `bootstrap.sh` を root として 1 回動かす（KAGOYA の鍵で root として入れるのはこの 1 回だけ。最後に root での SSH を止める）。時刻（Asia/Tokyo と NTP）、ホスト名、パッケージ、自動の更新（セキュリティだけ、自動の再起動なし）、作業ユーザー `aka`（sudo はパスワードなし。段階 5 の間だけ）、取得のユーザー `pull`、WireGuard の鍵を作る。
+3. 各ノードで `bootstrap.sh` を root として 1 回動かす。KAGOYA の Debian 13 はユーザー `debian`（sudo はパスワードなし）で入る作りなので、KAGOYA の鍵で `debian` として入り `sudo` で動かす（この 1 回だけ。最後に `AllowUsers aka pull` で `debian` と root では入れなくなる。2 回動かしても同じ結果になる）。時刻（Asia/Tokyo と NTP）、ホスト名、パッケージ、自動の更新（セキュリティだけ、自動の再起動なし）、作業ユーザー `aka`（sudo はパスワードなし。段階 5 の間だけ）、取得のユーザー `pull`、WireGuard の鍵を作る。
 
    ```bash
-   ssh -i ~/.ssh/<KAGOYA の鍵>.key root@<公開のアドレス> 'bash -s' -- data "$(cat ~/.ssh/aka_mvp_ed25519.pub)" < deploy/host/bootstrap.sh
+   ssh -i ~/.ssh/<KAGOYA の鍵>.key debian@<公開のアドレス> "sudo bash -s -- data '$(cat ~/.ssh/aka_mvp_ed25519.pub)'" < deploy/host/bootstrap.sh
    ```
 
-   最後に出る `WGSVC_PUB_*`・`WGOPS_PUB_*` の行を `inventory.env` に貼る。続けて `ssh aka-data-pub` で `aka` として入れることを確かめる。
+   最後に出る `WGSVC_PUB_*`・`WGOPS_PUB_*` の行を `inventory.env` に貼る。bootstrap の `apt-get` が通らなければ、セキュリティグループが外向きの通信への応答を断っている（K2）。ユーザーに全ノードから外してもらってやり直す。続けて `ssh aka-data-pub` で `aka` として入れることを確かめる。
 
 4. 検証機の 2 台目で ops-pc を起動し（§11）、出る `WGOPS_PUB_pc` と `PULL_SSH_KEY` を `inventory.env` に貼って、もう一度描き出す。
 
@@ -85,7 +89,9 @@ ssh aka-mon-pub sudo aka-nft-confirm
 ssh aka-mon-pub sudo wg show
 ```
 
-`latest handshake` が出ていること（つなぎに行く側を上げた後）。全ノードを上げたら、手元から `ssh aka-data`（ops-pc と監視ノードを経由）で入れることを確かめる。
+`latest handshake` が出ていること（つなぎに行く側を上げた後）。
+
+`wg-ops` は MTU を 1280 にしてある（`render` が描き出す）。ops-pc は手元の回線を通るため、既定の 1420 では包んだパケットが経路の MTU を超えて落ち、SSH が鍵交換の途中で止まった（2026-11 に KAGOYA で起きた。確認事項 K3）。`wg-svc`（VPS どうし）は既定のまま。全ノードを上げたら、手元から `ssh aka-data`（ops-pc と監視ノードを経由）で入れることを確かめる。
 
 ### 4.2 規則（`/etc/nftables.d/aka.nft`）
 
@@ -114,9 +120,9 @@ ssh aka-mon-pub sudo wg show
 deploy/bin/push-host "$WORK/out" data docker
 ```
 
-- Docker の apt のリポジトリから docker-ce `5:29.9.2-1~debian.13~trixie`（段階 4 で確かめた版）と compose プラグインを入れ、`apt-mark hold` で固定する（D6）。上げるときは手で版を変えて確かめる。
+- Docker の apt のリポジトリから docker-ce `5:29.9.2-1~debian.13~trixie`（段階 4 で確かめた版）と compose プラグインを入れ、`apt-mark hold` で固定する（D6）。docker-ce の推奨の docker-ce-rootless-extras も同じ版で入れて固定する（省くと最新の版が入る。2026-11-11 に 29.9.3 が入った）。上げるときは手で版を変えて確かめる。
 - `/etc/docker/daemon.json` は全ノード同じ（`deploy/host/daemon.json`: `userland-proxy: false`、`live-restore: true`、json-file のローテーション）。変えると dockerd を再起動する。
-- systemd の設定（`docker.service.d/10-aka-wireguard.conf`）で、docker を `wg-quick@wg-svc`・`wg-quick@wg-ops` の後に起動する（WireGuard のアドレスで公開するポートがあるため。D7）。
+- systemd の設定（`docker.service.d/10-aka-wireguard.conf`）で、docker を `wg-quick@wg-svc`・`wg-quick@wg-ops` の後に起動する（WireGuard のアドレスで公開するポートがあるため。D7）。再起動すると nftables → WireGuard → docker の順に上がる（2026-11-11 に edge-02 で確かめた）。
 - エッジだけ `fs.inotify.max_user_instances = 1024`（radsec-edge の運用ガイド 10.1）。
 - `aka` を docker のグループに入れる。
 
@@ -162,6 +168,7 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 
 ### 8.3 エッジ
 
+- **テナントを置く前に、ユーザーにエッジからセキュリティグループを外してもらう**（[deployment-console.md](deployment-console.md) §3.3。K1）。外すまでは AP がテナントのポートにつながらない。
 - radsec-edge の運用ガイド 10 章（管理モード）。`.env` は `env-hints.txt` のとおり（`EDGE_BIND_ADDR`・`EDGE_TLS_HOSTS` は `wg-svc` のアドレス、`EDGE_CRL_BASE_URL` は管理面の 8449、`EDGE_AGENT_PUBLISH_ADDR` は公開のアドレス、上流は aka-radius の `wg-svc` のアドレスの 1812・1813）。
 - **cloudflared は起動しない**（D10）。`docker compose up -d --no-build radsec-edge radsec-edge-agent fluent-bit`。
 - aka-provisioner の登録簿にエッジを足し、aka-ossbss の台帳に足す（aka-ossbss の運用ガイド 14.3）。
@@ -283,7 +290,7 @@ cd ~/aka-work/ops-pc && docker compose up -d --build && docker compose logs ops-
 
 aka-ossbss の運用ガイド 14.3 の順に、本書の手順を当てる。
 
-1. ユーザーがインスタンスを作る（エッジのセキュリティグループ）。
+1. ユーザーがインスタンスを作る（最初の導入の間はエッジのセキュリティグループを付け、テナントを置く前に外す。K1）。
 2. `inventory.env` の `EDGES` に `edge-03` を足し、`PUB_edge_03`・`SVC_edge_03`（10.81.0.13）・`OPS_edge_03`（10.82.0.13）を書く。§3 の bootstrap、公開鍵を貼って描き直す。
 3. **データ面・管理面・監視にも `files wg nft` を送る**（`wg-svc` と `wg-ops` のピア、nftables の `svc_edges` が増えるため）。続けて新しいエッジに §4〜§8.3。
 4. 監視ノードの `prometheus.yml` も描き直したものに置き換わる（`push-host … mon files monitor`）。
@@ -291,4 +298,4 @@ aka-ossbss の運用ガイド 14.3 の順に、本書の手順を当てる。
 ## 15. 確かめたことと残したこと
 
 - 5-1（検証機のリハーサル。`verify/deploy-rehearsal/README.md`）: 描き出し、nftables の文法、WireGuard の 2 本の網（wireguard-go）、規則の許すものと断るもの、監視ノードを踏み台にした SSH、`pull` の rrsync、ops-pc の取得、監視の compose と警告の規則、Slack への通知の形（偽の受け口）。
-- 5-1 では確かめていないもの（5-3〜5-6 で VPS の上で確かめる）: systemd の単位の実際の起動の順、docker-ce の導入、各ノードの導入（段階 4 までと同じ運用ガイド）、KAGOYA のセキュリティグループ（ポートの範囲、外向きの通信）、インターネット越しの AP と実際の送信元のアドレス、外形監視、Slack の本物の webhook。
+- 5-1 では確かめていないもの（5-3〜5-6 で VPS の上で確かめる）: systemd の単位の実際の起動の順、docker-ce の導入、各ノードの導入（段階 4 までと同じ運用ガイド）、KAGOYA のセキュリティグループが外向きの通信への応答を通すか（K2。ポートの範囲は書けないとユーザーが確かめた）、インターネット越しの AP と実際の送信元のアドレス、外形監視、Slack の本物の webhook。
