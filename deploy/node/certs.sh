@@ -18,7 +18,8 @@ enddate() { # 標準入力の PEM の証明書の期限（UNIX 時刻）
 	echo "# TYPE aka_cert_probe_ok gauge"
 	while read -r name addr; do
 		[ -n "${name:-}" ] || continue
-		if t=$(timeout 10 openssl s_client -connect "$addr" < /dev/null 2> /dev/null | enddate); then
+		# mTLS の口はクライアント証明書がないことを TLS の警告で断り、s_client は 1 で終わる。証明書を読めたかだけで判定する
+		if t=$( (timeout 10 openssl s_client -connect "$addr" < /dev/null 2> /dev/null || true) | enddate); then
 			echo "aka_cert_not_after_seconds{cert=\"$name\"} $t"
 			echo "aka_cert_probe_ok{cert=\"$name\"} 1"
 		else
