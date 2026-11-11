@@ -153,6 +153,8 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 
 各ノードの運用ガイドの導入の章に従う。`out/<ノード>/env-hints.txt` に、そのノードの `.env` に入れる WireGuard のアドレスなどを描き出してある。順はデータ面 → 管理面 → エッジ（運用ガイドの「先に導入する」に合わせる）。
 
+- **設定の読み直しの `docker compose kill -s HUP` を受けたコンテナは、再起動の後に起き上がらない。** Docker がそのコンテナに「手で止めた」の印を付け、`unless-stopped` は起動のときにそれを起こし直さない（2026-11-11 に、HUP を送った aka-provisioner が管理面の再起動の後に止まったままになった。確認事項 T5-15）。そのため各ノードに `aka-compose-up.service`（`push-host … node` が有効にする）を置き、起動のときに `/etc/aka/compose-stacks` のスタックを `docker compose up -d --no-build` で起こす。動いているコンテナには何もしない。起動しないと決めたもの（radsec-ca・エッジの cloudflared。D10）は一覧に入れていない。スタックを足したら `render` の `compose_stacks` も直す。
+
 ### 8.1 データ面（aka-vecgen → aka-radius）
 
 - aka-vecgen: 運用ガイド 2〜4 章。`.env` の `VECGEN_ADMIN_PUBLISH` を `wg-svc` のアドレスの 9443、`VECGEN_ADMIN_TLS_HOSTS` にそのアドレスを足す。データ面の Fluent Bit に送る重ね合わせ（`COMPOSE_FILE=compose.yaml:compose.fluent-bit.yaml`）。
@@ -186,7 +188,7 @@ deploy/bin/push-host "$WORK/out" data files node
 deploy/bin/push-host "$WORK/out" mon files node monitor
 ```
 
-- 各ノード: `/opt/aka-node` の node_exporter（`network_mode: host`、`wg-ops` のアドレスの 9100）と、textfile のスクリプトの timer（§9.2）、バックアップの timer（§10）。
+- 各ノード: `/opt/aka-node` の node_exporter（`network_mode: host`、`wg-ops` のアドレスの 9100）と、textfile のスクリプトの timer（§9.2）、バックアップの timer（§10）、起動のときの `aka-compose-up.service`（§8）。
 - 監視ノード: `/opt/aka-monitor` に Prometheus（30 日持つ）、Alertmanager、Grafana、blackbox_exporter（aka-ossbss の公開のホスト名）。版は compose で固定した（D11）。画面は `wg-ops` のアドレスだけで公開し、手元からポート転送で見る。
 
   ```bash
@@ -254,7 +256,8 @@ cd ~/aka-work/ops-pc && docker compose up -d --build && docker compose logs ops-
    ```
 
 - ログと監査ログは 3 か月（概要 §13）、バックアップは 30 日持つ（`data/<ノード>/`）。取ったものは `data/` の持ち主（検証機のユーザー）のものにし、本人だけが読める（`.env` の写しなど秘密の値を含む）。生の IMSI がログに入る（決定事項 26）ので、`data/` は検証機の外に出さない。
-- 手元の SSH は `ssh <検証機> docker exec -i ops-pc nc <監視ノード> 22` を経由する（`out/ssh_config` の `aka-mon`）。
+- 手元の SSH は `ssh <検証機> docker exec -i ops-pc nc -N <監視ノード> 22` を経由する（`out/ssh_config` の `aka-mon`）。`-N`（入力の終わりで接続を閉じる）がないと、SSH を終えても `docker exec` の中の `nc` が残り、監視ノードとその先のセッションが溜まる（2026-11-11 に監視ノードに 211 本たまり、空きメモリーが 632 MiB まで減った。確認事項 T5-14）。各ノードの sshd は相手の消えた接続を約 2 分で切る（`ClientAliveInterval 30`・`ClientAliveCountMax 4`）。
+- ops-pc は 60 秒ごとに監視ノードとの最後のハンドシェイクを見て、3 分より古ければ `wg-ops` を張り直す（2026-11-11 に返事がないまま止まり、作り直しで戻った。手元の回線のルーターの NAT の対応が切れたと見ている。確認事項 T5-16）。
 
 ## 12. 秘密の値の一覧
 
