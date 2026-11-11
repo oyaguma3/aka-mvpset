@@ -28,7 +28,7 @@ step_files() {
 	chmod 700 /etc/wireguard
 	install -m 644 "$D/host/nftables.conf" /etc/nftables.conf
 	install -d -m 755 /usr/local/lib/aka
-	install -m 755 "$D/node/textfile.sh" "$D/node/certs.sh" "$D/node/backup.sh" /usr/local/lib/aka/
+	install -m 755 "$D/node/textfile.sh" "$D/node/certs.sh" "$D/node/backup.sh" "$D/node/compose-up.sh" /usr/local/lib/aka/
 	install -m 755 "$D/host/aka-nft-apply" "$D/host/aka-nft-confirm" /usr/local/sbin/
 	if [ -f "$D/host/logrotate/$role" ]; then install -m 644 "$D/host/logrotate/$role" /etc/logrotate.d/aka; fi
 	install -d -o pull -g pull -m 700 /var/lib/aka-pull/.ssh
@@ -105,6 +105,7 @@ step_node() {
 	log "node_exporter と timer"
 	(cd /opt/aka-node && docker compose up -d --wait)
 	systemctl enable --now aka-textfile.timer aka-certs.timer aka-backup.timer
+	systemctl enable aka-compose-up.service # 起動のときだけ動く（T5-15）
 	/usr/local/lib/aka/textfile.sh
 }
 

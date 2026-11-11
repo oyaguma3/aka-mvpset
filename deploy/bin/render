@@ -336,7 +336,25 @@ def sshd_exempt(inv, node):
     """SSH はどれも 1 つの送信元（監視ノードへは ops-pc、各ノードへは監視ノード）から届く。OpenSSH 10 の PerSourcePenalties が
     その送信元を締め出すと入口がなくなるので、nftables で絞ってある送信元だけを外す（リハーサルで分かった。docs/deployment.md §3）。"""
     src = inv.ops("pc") if node == "mon" else inv.ops("mon")
-    return f"# deploy/bin/render が描き出した\nPerSourcePenaltyExemptList {src}\n"
+    return (
+        f"# deploy/bin/render が描き出した\nPerSourcePenaltyExemptList {src}\n"
+        "# 相手が消えた接続を約 2 分で切る。手元の経路の nc（ops-pc の docker exec）は接続を終えても残り、\n"
+        "# 監視ノードとその先のセッションが溜まった（確認事項 T5-14）\n"
+        "ClientAliveInterval 30\nClientAliveCountMax 4\n"
+    )
+
+
+def compose_stacks(role):
+    """起動のときに aka-compose-up が docker compose up -d --no-build するスタック（ディレクトリ [サービス ...]。サービスを省くと全部）。
+    docker compose kill -s HUP（設定の読み直し）を受けたコンテナは Docker に「手で止めた」の印を付けられ、unless-stopped でも
+    起動のときに起こし直されないため（確認事項 T5-15）。起動しないと決めたもの（radsec-ca・エッジの cloudflared。D10）は含めない。
+    共有のネットワークを作る側を先に書く（aka-vecgen → aka-radius、aka-provisioner → aka-ossbss・radsec-ca）。"""
+    return {
+        "data": ["/opt/aka-vecgen", "/opt/aka-radius/deployments", "/opt/aka-node"],
+        "mgmt": ["/opt/aka-provisioner", "/opt/aka-ossbss", "/opt/radsec-ca radsec-ca", "/opt/aka-node"],
+        "edge": ["/opt/radsec-edge radsec-edge radsec-edge-agent fluent-bit", "/opt/aka-node"],
+        "mon": ["/opt/aka-monitor", "/opt/aka-probe", "/opt/aka-node"],
+    }[role]
 
 
 def ssh_config_local(inv):
@@ -353,7 +371,9 @@ def ssh_config_local(inv):
         "",
         "Host aka-mon",
         f"    HostName {inv.ops('mon')}",
-        "    ProxyCommand " + inv.e.get("OPS_PC_PROXY", f"ssh {pc} docker exec -i {ctr} nc %h %p"),
+        # nc -N: 入力の終わりで接続を閉じる。付けないと、SSH を終えても docker exec の中の nc が残り、監視ノードと
+        # その先のセッションが溜まる（確認事項 T5-14。docker exec は呼び出し側が切れても中のプロセスを止めない）
+        "    ProxyCommand " + inv.e.get("OPS_PC_PROXY", f"ssh {pc} docker exec -i {ctr} nc -N %h %p"),
         "",
     ]
     for n in CENTRAL + inv.edges:
@@ -416,6 +436,7 @@ def main():
         write(d, "etc/aka/export.list", "".join(f"{a} {b}\n" for a, b in export_list(role)))
         write(d, "etc/aka/pull_authorized_keys", pull_keys(inv, n), 0o644)
         write(d, "etc/ssh/sshd_config.d/20-aka-wg.conf", sshd_exempt(inv, n))
+        write(d, "etc/aka/compose-stacks", "".join(f"{x}\n" for x in compose_stacks(role)))
         write(d, "opt/aka-node/.env", f"NODE_EXPORTER_ADDR={inv.ops(n)}\n")
         if role == "mon":
             write(d, "opt/aka-monitor/prometheus/prometheus.yml", prometheus(inv))

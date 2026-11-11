@@ -1,0 +1,12 @@
+[Unit]
+Description=aka: 起動のときに各スタックを docker compose up -d する（docs/deployment.md §8、確認事項 T5-15）
+Wants=docker.service
+After=docker.service network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/aka/compose-up.sh
+TimeoutStartSec=10min
+
+[Install]
+WantedBy=multi-user.target
