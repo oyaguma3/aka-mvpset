@@ -1,3 +1,3 @@
 module github.com/oyaguma3/aka-mvpset/verify/avload
 
-go 1.27.3
+go 1.27.4
