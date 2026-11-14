@@ -64,6 +64,7 @@
 
 SSH は鍵だけで、root では入らせない。`AllowUsers aka pull`。最初の導入が終わったら、SSH は `wg-ops` からだけ（nftables）受け、セキュリティグループの 22 番も閉じる（§4.3）。
 
+- KAGOYA の Debian 13 のひな形には `/etc/apt/sources.list.d/debian.sources_`（拡張子の違う写し）があり、apt が「拡張子が違うので無視した」と出す。害はないので残す（段階 5 で見つけた）。
 - SSH はどれも 1 つの送信元から届く（監視ノードへは ops-pc、各ノードへは監視ノード）。OpenSSH 10 の `PerSourcePenalties` は、認証しないまま閉じた接続などがあるとその送信元をしばらく締め出すので、入口がなくなる（リハーサルで起きた）。nftables で絞ってある送信元だけを `PerSourcePenaltyExemptList` で外す（`/etc/ssh/sshd_config.d/20-aka-wg.conf`。`render` が描き出す）。
 
 ## 4. WireGuard と nftables
@@ -137,6 +138,13 @@ ssh aka-data 'tar -xf - -C /opt/aka-radius' < "$WORK/src/aka-radius.tar"
 ```
 
 `.env` と秘密の値は各ノードの運用ガイドのとおりに作る（`/opt/<リポジトリ>` の中。git の管理の外）。
+
+更新で置き直すときは、aka-radius の `deployments/sources/` と aka-provisioner の `audit/`・`downstreams/` がコンテナの UID（65532）の持ち物になっていて、中の見本のファイル（`*.example.json`・`.gitignore`）を書けず、tar が失敗で終わる（ほかのファイルは置かれ、見本の中身は変わらない。段階 5 で見つけた）。置き直しではこの 3 つを外す（`--anchored` で先頭からの名前に限る。付けないと `internal/audit/` なども外れる）。
+
+```bash
+ssh aka-data 'tar -xf - -C /opt/aka-radius --anchored --exclude=deployments/sources' < "$WORK/src/aka-radius.tar"
+ssh aka-mgmt 'tar -xf - -C /opt/aka-provisioner --anchored --exclude=audit --exclude=downstreams' < "$WORK/src/aka-provisioner.tar"
+```
 
 ## 7. イメージ
 
@@ -216,6 +224,8 @@ deploy/bin/push-host "$WORK/out" mon files node monitor
 
 Alertmanager は Slack の webhook に送る（S5-11）。webhook の URL は `/opt/aka-monitor/secrets/slack-webhook`（600、UID 65534）に置き、`docker compose restart alertmanager`。Slack アプリの作り方は [deployment-console.md](deployment-console.md) §5。
 
+Alertmanager は警告の名前とノードでまとめ（`group_by`）、最初の知らせは 30 秒待って送る（`group_wait`）。同じまとまりの次の知らせは、前の知らせから 5 分空ける（`group_interval: 5m`）ので、**[解消] は [発生] から最短でも 5 分後に届く**（段階 5 の障害の通知の確かめで、Prometheus の上では発生の約 3 分後に解消していた）。実際に解消した時刻は Prometheus（Grafana）で見る。
+
 ### 9.4 外形監視
 
 監視ノードに AP の役（Debian の radsecproxy。スロットごとに 1 つ）と eapaka_test を置き、1 分ごとに 2 台のエッジのスロットの名前（`primary`・`secondary`）へ EAP-AKA を最後まで通す（S5-12）。インターネット越しにエッジの公開のアドレスへつなぐ。
@@ -277,6 +287,15 @@ cd ~/aka-work/ops-pc && docker compose up -d --build && docker compose logs ops-
 | Grafana の admin のパスワード、Slack の webhook | 監視 `/opt/aka-monitor/secrets/` | §9 | 入れない | ユーザー（Slack）| 作り直す |
 | 外形監視の IMSI の鍵、AP の鍵 | 監視 `/opt/aka-probe/` | §9.4 | 入れない | — | 登録し直す |
 
+- KEK の写し（手元の `~/aka-deploy/keks/`。導入のときに取る）は、手元で暗号化して保管する。パスフレーズはパスワード管理に置き、復号できることを確かめてから平文を消す。パスフレーズを打つので、運用者が手元の端末で動かす（段階 5 の締め R5-8）。
+
+```bash
+cd ~/aka-deploy/keks
+for f in *.kek; do gpg --symmetric --cipher-algo AES256 --output "$f.gpg" "$f"; done   # パスフレーズをきかれる（gpg-agent が覚えていれば 2 つ目からはきかれない）
+for f in *.kek; do gpg --quiet --decrypt "$f.gpg" | cmp - "$f" && echo "$f: 復号できた"; done
+shred -u *.kek   # 3 つとも「復号できた」と出てから
+```
+
 - 本番の保管先と担当は、顧客を収容する前に作り直すときに決める（S5-2・S5-17）。
 
 ## 13. VPS を 1 台失ったとき
@@ -305,3 +324,6 @@ aka-ossbss の運用ガイド 14.3 の順に、本書の手順を当てる。
 
 - 5-1（検証機のリハーサル。`verify/deploy-rehearsal/README.md`）: 描き出し、nftables の文法、WireGuard の 2 本の網（wireguard-go）、規則の許すものと断るもの、監視ノードを踏み台にした SSH、`pull` の rrsync、ops-pc の取得、監視の compose と警告の規則、Slack への通知の形（偽の受け口）。
 - 5-1 では確かめていないもの（5-3〜5-6 で VPS の上で確かめる）: systemd の単位の実際の起動の順、docker-ce の導入、各ノードの導入（段階 4 までと同じ運用ガイド）、KAGOYA のセキュリティグループが外向きの通信への応答を通すか（K2。ポートの範囲は書けないとユーザーが確かめた）、インターネット越しの AP と実際の送信元のアドレス、外形監視、Slack の本物の webhook。
+- 5-3〜5-6（VPS の上。概要 §18.12・§20.5、`verify/stage5/README.md`）: 最初の導入と閉じ方（K1〜K3）、systemd の単位の起動の順（nftables → WireGuard → docker）、各ノードの導入、下流 5 つへの接続、Tunnel と公開のホスト名、外形監視、Slack への通知（[発生]・[解消]）、毎日のバックアップと ops-pc の取得、データ面と管理面を写しから戻す練習、インターネット越しの AP と実際の送信元のアドレス、エッジ 1 台に 150 テナントの長い時間の試験、`systemctl restart docker` と docker-ce・containerd.io の更新（live-restore で接続が続き、更新ではエッジの agent が約 1 分で作り直される）。
+- 5-6 で直したもの: SSH のセッションの溜まり（`ClientAlive*` と `nc -N`。T5-14）、HUP を受けたコンテナを起動のときに起こす `aka-compose-up.service`（T5-15）、ops-pc の WireGuard の見張り（T5-16）、containerd.io の固定（T5-24）、監視の段で規則が変わったら Prometheus・Alertmanager を再起動する、エッジの使用量の警告 `EdgeMemoryHigh` と容量の目安（§14。T5-25）。
+- 残したもの（段階 6）: エッジのひな形とイメージの更新を段階的に届ける口と、バックアップで radsec-edge を止めない形（概要 §19 の 15・16）、各ノードの運用ガイドへの注記（HUP、Docker の更新での agent）、顧客を収容する前の作り直し（S5-2）。
