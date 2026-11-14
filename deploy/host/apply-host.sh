@@ -13,7 +13,8 @@ set -euo pipefail
 
 D=$(cd "$(dirname "$0")/.." && pwd) # 送った束（root/ と deploy の部品）
 ROOT=$D/root
-DOCKER_VERSION=5:29.9.2-1~debian.13~trixie
+DOCKER_VERSION=5:29.9.3-1~debian.13~trixie
+CONTAINERD_VERSION=2.4.2-4~debian.13~trixie
 NOSD=${AKA_NO_SYSTEMD:-0}
 [ "$(id -u)" = 0 ] || { echo "sudo で動かす" >&2; exit 2; }
 role=$(cat "$ROOT/etc/aka/role")
@@ -80,11 +81,24 @@ step_docker() {
 		apt-get update -q
 		install -d -m 755 /etc/docker
 		install -m 644 "$D/host/daemon.json" /etc/docker/daemon.json
-		# docker-ce の推奨の docker-ce-rootless-extras も同じ版にする（省くと最新が入る）
+		# docker-ce の推奨の docker-ce-rootless-extras も同じ版にする（省くと最新が入る）。containerd.io も版を決めて固定する
+		# （固定しないと apt-get upgrade で計画なしに containerd が入れ替わる。段階 5 の T5-24）
 		DEBIAN_FRONTEND=noninteractive apt-get install -y -q "docker-ce=$DOCKER_VERSION" "docker-ce-cli=$DOCKER_VERSION" \
-			"docker-ce-rootless-extras=$DOCKER_VERSION" containerd.io docker-compose-plugin
-		apt-mark hold docker-ce docker-ce-cli docker-ce-rootless-extras
+			"docker-ce-rootless-extras=$DOCKER_VERSION" "containerd.io=$CONTAINERD_VERSION" docker-compose-plugin
+		apt-mark hold docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io
 		usermod -aG docker aka
+	fi
+	# 版を変えたら上げる。dockerd と containerd が再起動するが、コンテナは live-restore で動き続ける。
+	# パッケージの更新は docker.socket も作り直すので、エッジの agent は約 1 分で作り直されてつなぎ直す（段階 5 の T5-10）
+	cur_d=$(dpkg-query -W -f='${Version}' docker-ce)
+	cur_c=$(dpkg-query -W -f='${Version}' containerd.io)
+	if [ "$cur_d" != "$DOCKER_VERSION" ] || [ "$cur_c" != "$CONTAINERD_VERSION" ]; then
+		log "docker-ce $cur_d → $DOCKER_VERSION、containerd.io $cur_c → $CONTAINERD_VERSION（dockerd と containerd が再起動する）"
+		apt-get update -q
+		apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io > /dev/null
+		DEBIAN_FRONTEND=noninteractive apt-get install -y -q -o Dpkg::Options::=--force-confold "docker-ce=$DOCKER_VERSION" \
+			"docker-ce-cli=$DOCKER_VERSION" "docker-ce-rootless-extras=$DOCKER_VERSION" "containerd.io=$CONTAINERD_VERSION"
+		apt-mark hold docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io
 	fi
 	if ! cmp -s "$D/host/daemon.json" /etc/docker/daemon.json; then
 		log "daemon.json（dockerd を再起動する）"
@@ -114,6 +128,9 @@ step_monitor() {
 	[ "$NOSD" = 1 ] && return
 	log "監視"
 	install -d -m 755 /opt/aka-monitor /opt/aka-monitor/secrets
+	conf() { cat /opt/aka-monitor/prometheus/*.yml /opt/aka-monitor/alertmanager/*.yml 2> /dev/null | sha256sum; }
+	local before
+	before=$(conf)
 	cp -r "$D"/monitor/. /opt/aka-monitor/
 	cp "$ROOT/opt/aka-monitor/prometheus/prometheus.yml" /opt/aka-monitor/prometheus/prometheus.yml
 	if [ ! -s /opt/aka-monitor/secrets/slack-webhook ]; then
@@ -126,6 +143,12 @@ step_monitor() {
 	chown 472:472 /opt/aka-monitor/secrets/grafana-admin
 	chmod 600 /opt/aka-monitor/secrets/slack-webhook /opt/aka-monitor/secrets/grafana-admin
 	(cd /opt/aka-monitor && docker compose up -d --wait)
+	# 規則や設定が変わっても up は動いているコンテナを作り直さないので、再起動して読み直す
+	# （HUP は送らない。docker compose kill は「手で止めた」の印を付け、ホストの再起動の後に起き上がらなくなる。T5-15）
+	if [ "$before" != "$(conf)" ]; then
+		log "Prometheus・Alertmanager の設定が変わったので再起動して読み直す"
+		(cd /opt/aka-monitor && docker compose restart prometheus alertmanager)
+	fi
 }
 
 steps=${*:-files wg nft docker node monitor}

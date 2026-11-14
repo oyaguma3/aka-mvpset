@@ -120,7 +120,8 @@ ssh aka-mon-pub sudo wg show
 deploy/bin/push-host "$WORK/out" data docker
 ```
 
-- Docker の apt のリポジトリから docker-ce `5:29.9.2-1~debian.13~trixie`（段階 4 で確かめた版）と compose プラグインを入れ、`apt-mark hold` で固定する（D6）。docker-ce の推奨の docker-ce-rootless-extras も同じ版で入れて固定する（省くと最新の版が入る。2026-11-11 に 29.9.3 が入った）。上げるときは手で版を変えて確かめる。
+- Docker の apt のリポジトリから docker-ce `5:29.9.3-1~debian.13~trixie`・containerd.io `2.4.2-4~debian.13~trixie`（段階 5 の T5-10・T5-24 でエッジに 150 テナントと AP の接続 740 本を載せたまま上げて確かめた版）と compose プラグインを入れ、`apt-mark hold` で固定する（D6）。docker-ce の推奨の docker-ce-rootless-extras も同じ版で入れて固定する（省くと最新の版が入る。2026-11-11 に 29.9.3 が入った）。containerd.io も固定する（固定しないと `apt-get upgrade` で計画なしに containerd が入れ替わる）。
+- 上げるときは `deploy/host/apply-host.sh` の `DOCKER_VERSION`・`CONTAINERD_VERSION` を変え、1 台ずつ `push-host … <ノード> docker` で送る（版が違えば上げて固定し直す）。dockerd と containerd は再起動するが、コンテナは live-restore で動き続け、張ったままの接続も切れない（edge-02 で確かめた。dockerd の再起動だけなら約 16 秒、更新は約 27 秒で dockerd が応える）。パッケージの更新は docker.socket も作り直すので、エッジの agent（`/var/run/docker.sock` をファイルでマウントしている）は古いソケットを見たまま届かなくなり、約 1 分後に自分で終わって作り直され、つなぎ直す（radsec-edge の運用ガイド 10.1。この間に反映を始めると agent に届かず失敗しうるので、エッジの更新の後は agent が戻ってから反映する）。dockerd の再起動（`systemctl restart docker`）だけなら docker.socket は変わらず、agent は 1 秒ほどでつなぎ直す。
 - `/etc/docker/daemon.json` は全ノード同じ（`deploy/host/daemon.json`: `userland-proxy: false`、`live-restore: true`、json-file のローテーション）。変えると dockerd を再起動する。
 - systemd の設定（`docker.service.d/10-aka-wireguard.conf`）で、docker を `wg-quick@wg-svc`・`wg-quick@wg-ops` の後に起動する（WireGuard のアドレスで公開するポートがあるため。D7）。再起動すると nftables → WireGuard → docker の順に上がる（2026-11-11 に edge-02 で確かめた）。
 - エッジだけ `fs.inotify.max_user_instances = 1024`（radsec-edge の運用ガイド 10.1）。
@@ -209,7 +210,7 @@ deploy/bin/push-host "$WORK/out" mon files node monitor
 | `probe.sh`（監視ノード） | 1 分 | `aka_probe_success`、`aka_probe_consecutive_failures`、`aka_probe_last_run_seconds` |
 
 - `certs.sh` は `openssl s_client` でサーバー証明書を読む。mTLS の口は TLS 1.3 ではクライアント証明書を求める前に証明書が届くので読めるが、**各ノードのログに 1 時間に 1 回、クライアント証明書のない接続の拒否が出る**（aka-radius の `ADMIN_CLIENT_REJECTED` など。送信元は自分のアドレス）。radsec-ca の管理API はホストに公開しないので、コマンド（`server-cert`）で読む。
-- 警告の規則は `deploy/monitor/prometheus/rules.yml`: ノードが落ちた、ディスク 80%、メモリー、数値が 5 分古い、Docker に届かない、コンテナが止まった・unhealthy、エッジの dockerd・containerd が 400 MiB 超（決定事項 28）、ハンドシェイクが 180 秒より古い、aka-ossbss の公開のホスト名に届かない、証明書の期限 14 日前、CRL の次の更新まで 2 日、バックアップが 26 時間ない・失敗、外形監視が 3 回続けて失敗・結果が 5 分ない。
+- 警告の規則は `deploy/monitor/prometheus/rules.yml`: ノードが落ちた、ディスク 80%、メモリー、エッジの使用量が容量の目安 2.8 GiB 超（30 分。T5-25）、数値が 5 分古い、Docker に届かない、コンテナが止まった・unhealthy、エッジの dockerd・containerd が 400 MiB 超（決定事項 28）、ハンドシェイクが 180 秒より古い、aka-ossbss の公開のホスト名に届かない、証明書の期限 14 日前、CRL の次の更新まで 2 日、バックアップが 26 時間ない・失敗、外形監視が 3 回続けて失敗・結果が 5 分ない。
 
 ### 9.3 Slack への通知
 
@@ -297,6 +298,8 @@ aka-ossbss の運用ガイド 14.3 の順に、本書の手順を当てる。
 2. `inventory.env` の `EDGES` に `edge-03` を足し、`PUB_edge_03`・`SVC_edge_03`（10.81.0.13）・`OPS_edge_03`（10.82.0.13）を書く。§3 の bootstrap、公開鍵を貼って描き直す。
 3. **データ面・管理面・監視にも `files wg nft` を送る**（`wg-svc` と `wg-ops` のピア、nftables の `svc_edges` が増えるため）。続けて新しいエッジに §4〜§8.3。
 4. 監視ノードの `prometheus.yml` も描き直したものに置き換わる（`push-host … mon files monitor`）。
+
+エッジの容量（4 GB のエッジ）は、上限 150 テナント（`EDGE_TENANT_CAPACITY`・台帳の容量）のまま、**140 テナントを超えたら次のエッジ（2 台）の準備に入る**（確認事項 T5-25）。段階 5 の試験では、150 テナント・AP の接続 740 本の定常で使用量が約 2.9 GiB と、目安の 2.8 GiB（4 GB の 70%）を少し超えた。1 テナントは約 13 MiB（containerd-shim と radsecproxy）、AP の接続 1 本は約 0.2 MiB で、140 テナントなら AP 740 本でも約 2.77 GiB の見込み。テナントの作成と配置はシステム管理者と運用担当だけが行うが、AP は顧客（テナント管理者）も足せるので、使用量を監視の `EdgeMemoryHigh`（§9.2）で見る。出たら、そのエッジに新しいテナントを置かず、次のエッジを用意する。
 
 ## 15. 確かめたことと残したこと
 

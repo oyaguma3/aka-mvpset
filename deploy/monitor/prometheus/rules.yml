@@ -17,6 +17,13 @@ groups:
         for: 10m
         labels: {severity: warning}
         annotations: {summary: "{{ $labels.node }} の使えるメモリーが 10% を切った"}
+      # エッジの容量の目安（4 GB のエッジで使用量 2.8 GiB = 4 GB の 70%。段階 5 の T5-9・T5-25）。テナントの数（運用で決める）と
+      # 顧客が足す AP の数のどちらで増えても拾う。エッジの大きさを変えたら値も変える
+      - alert: EdgeMemoryHigh
+        expr: (node_memory_MemTotal_bytes{node=~"edge-.*"} - node_memory_MemAvailable_bytes{node=~"edge-.*"}) > 2.8 * 1024 * 1024 * 1024
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の使用量が容量の目安 2.8 GiB を超えた（{{ $value | humanize1024 }}B）。このエッジに新しいテナントを置かず、次のエッジを用意する（aka-ossbss の運用ガイド 14.3）"}
       - alert: TextfileStale
         expr: time() - node_textfile_mtime_seconds{file=~".*aka.prom"} > 300
         for: 2m
