@@ -1,0 +1,17 @@
+記録 243 件（0.0〜40.4 時間）、6 時間以降 207 件
+  使用量（MemTotal−MemAvailable）: 最初 2772.0、最後 2996.0、最大 3044.0 MiB、6 時間以降の増え方 +92.3 MiB/日
+  コンテナの cgroup の anon+kernel: 最初 639.8、最後 796.5、最大 798.9 MiB、6 時間以降の増え方 +64.1 MiB/日
+  docker.service の anon+kernel: 最初 148.1、最後 158.8、最大 162.9 MiB、6 時間以降の増え方 +0.7 MiB/日
+  containerd.service の anon+kernel: 最初 1369.4、最後 1393.3、最大 1397.3 MiB、6 時間以降の増え方 +2.6 MiB/日
+  dockerd の PSS: 最初 182.8、最後 193.1、最大 197.7 MiB、6 時間以降の増え方 +0.3 MiB/日
+  containerd の PSS: 最初 88.7、最後 91.6、最大 95.0 MiB、6 時間以降の増え方 -0.5 MiB/日
+  containerd-shim の PSS: 最初 1248.6、最後 1267.3、最大 1269.0 MiB、6 時間以降の増え方 +2.0 MiB/日
+  radsecproxy の PSS: 最初 416.8、最後 558.9、最大 558.9 MiB、6 時間以降の増え方 +55.8 MiB/日
+  radsec-edge の PSS: 最初 51.2、最後 52.0、最大 54.4 MiB、6 時間以降の増え方 -0.5 MiB/日
+  fluent-bit の PSS: 最初 42.4、最後 54.0、最大 56.3 MiB、6 時間以降の増え方 +4.6 MiB/日
+  FD（最初 → 最後）: {'dockerd': (1556, 1556), 'containerd': (631, 631)}
+  AP の接続（最小・最後）: 684 714  テナントのコンテナ（最小）: 150
+  ディスク（最後）: {'containers': 150, 'logs': 198, 'data': 8, 'tenants': 5} / 全体 18.93 GiB、radsecproxy のログ 93.2 MiB
+  起動の時刻が変わったコンテナ: ['radsec-edge-radsec-edge-1']
+  AP の役（最後）: {'connected': 712, 'connects': 145684, 'connect_failed': 55951, 'lost': 2, 'closed_by_churn': 144970, 'sent': 1429473, 'received': 1429434, 'accept': 0, 'reject': 1429434, 'challenge': 0, 'other': 0}
+判定: 6 時間以降の使用量の増え方 +92.3 MiB/日（基準 30 未満）→ 不合格、最大の使用量 3044 MiB（基準 2,867 MiB = 2.8 GiB 以内）→ 不合格

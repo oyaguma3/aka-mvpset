@@ -1,0 +1,68 @@
+P1-primary	PASS	スロットの名前 primary が edge-01 を指し、公開のリゾルバーと AP の役の機械で引ける（edge-01.<DNS_DOMAIN>. <edge-01 の公開のアドレス> / <edge-01 の公開のアドレス>）
+P1-secondary	PASS	スロットの名前 secondary が edge-02 を指し、公開のリゾルバーと AP の役の機械で引ける（edge-02.<DNS_DOMAIN>. <edge-02 の公開のアドレス> / <edge-02 の公開のアドレス>）
+B1	PASS	EAP-AKA が primary（edge-01）で通る
+B2	PASS	EAP-AKA が secondary（edge-02）で通る
+B3	PASS	EAP-AKA' が通る（両方のスロットを持つ AP）
+B4	PASS	aka-radius の AUTH_SUCCESS が 3 件、テナントは刻印の s5a（2）（3）
+B5	PASS	RADIUS はエッジのサービス用の WireGuard のアドレス（登録した RADIUS クライアント）から届く（10.81.0.11 10.81.0.12 ）
+B6-edge-01	PASS	edge-01 の radsecproxy に、AP の役の本物の送信元（手元の回線の公開のアドレス）で s5a-ap01 の TLS が見える（2）
+B6-edge-02	PASS	edge-02 の radsecproxy に、AP の役の本物の送信元（手元の回線の公開のアドレス）で s5a-ap01 の TLS が見える（2）
+R1	PASS	別のテナント（probe）の IMSI は s5a の AP から拒否
+R2	PASS	登録のない IMSI は拒否
+R3	PASS	radius 側を止めた加入者は拒否
+R4	PASS	radius 側を使うに戻すと通る
+S1	PASS	送信元の範囲を手元の回線のアドレス /32 にしても通る
+S2	PASS	範囲の外（192.0.2.0/24）にすると AP の接続が断られ、応答がない
+S2b	PASS	edge-01 の radsecproxy が範囲の外の送信元（手元の回線のアドレス）の接続を断った記録がある（20）
+S3	PASS	範囲を空に戻すとまた通る
+X0	PASS	失効させる前は ap02 で通る
+X1	PASS	失効の後、整合のループが 2 台に CRL を配り終える（5 秒）
+X2	PASS	失効させた ap02 はつながらず、応答がない
+X3-edge-01	PASS	edge-01 の radsecproxy が ap02 の証明書を失効として断る（1）
+X3-edge-02	PASS	edge-02 の radsecproxy が ap02 の証明書を失効として断る（1）
+X4	PASS	ap01 は失効の後も通る
+F1	PASS	管理面（10.81.0.2）からデータ面の 1812 に送った RADIUS は nftables で落ちる（落とした数 0 → 1）
+G1	PASS	edge-01 の再起動の間、両方のスロットを持つ AP は secondary に切り替わって通る（2 回目、16 秒）
+G1b	PASS	その応答は secondary から返っている（1）
+G2	PASS	edge-01 が戻ると primary でまた通る（28 秒で s5a のコンテナが戻った）
+G3	PASS	edge-01 の配置は反映済みのまま（ok）
+X5	PASS	失効の後の宣言の変更（版 10、求めた版 9）を「反映する」で 2 台に届けられる
+U1	PASS	ダッシュボードで aka-provisioner と 5 つの下流が接続中（6）
+U2	PASS	s5a の RadSec の画面で 2 つの配置が反映済み（2）
+D0	PASS	写しの後に足した A3 で通る
+D1	PASS	ボリュームと KEK を消したデータ面を、ops-pc の写しと手元の KEK の写しから戻し、7 つのコンテナが healthy（6）。消してから戻すまで 52 秒（RTO 4 時間）
+D2	PASS	戻した後、A1 で通る（写しの後に進めた SQN は巻き戻り、再同期で回復する）
+D3	PASS	aka-radius のログに A1 の再同期が出る（1）
+D4	PASS	写しの後に足した A3 は戻した後は拒否（写しにないため）
+D5	PASS	突き合わせを手で動かすと、A3 のずれを見つけて台帳を下流に合わせる（2026-11-12 00:29:08 手動 完了 4 / 3 / 3 2 2）
+D6	PASS	A3 を両側に登録し直すと通る（vecgen 側は鍵があるので登録し直しが要る）
+M0	PASS	写しの後に足した ap03 で通る（版 10 → 11）
+M1	PASS	aka-provisioner の Valkey・aka-ossbss の DB・radsec-ca の DB を ops-pc の写しから戻した。healthy 5、下流 5/5、公開のホスト名 302。始めてから 37 秒（RTO 4 時間）
+M2	PASS	戻した DB は写しの時点（s5a の版 10、ap03 の行 0）
+M4	PASS	配置の行に「エッジのほうが新しい版です」が出る（2）
+M5	PASS	「やり直す」を押す前は ap03 でもまだ通る（ループはエッジに反映しない）
+M6	PASS	「やり直す」を 1 台ずつ押すと、2 台が今の DB の状態（版 10）になる
+M7	PASS	やり直した後は、写しの後に足した ap03 はつながらない
+M3	PASS	管理面を戻した後も ap01 で通る（つなぎ直した AP の役で。初めの判定は、ご自宅のルーターが流れのない接続の NAT の対応を消していたため失敗した。T5-18）
+M8	PASS	やり直した後も ap01 は secondary（edge-02）でも通る
+K0-edge-01	PASS	edge-01 の s5a の設定の client ブロックに TCPKeepalive on（3 件）
+K0-edge-02	PASS	edge-02 の s5a の設定の client ブロックに TCPKeepalive on（3 件）
+K1-p	PASS	つないですぐは primary（edge-01）で通る
+K1-s	PASS	つないですぐは secondary（edge-02）で通る
+K2-edge-01	PASS	edge-01 の s5a のコンテナの中の AP の役の接続（送信元は手元の回線）に keepalive の timer（timer:(keepalive,4.644sec,0)）
+K2-edge-02	PASS	edge-02 の s5a のコンテナの中の AP の役の接続（送信元は手元の回線）に keepalive の timer（timer:(keepalive,4.564sec,0)）
+K3-s	PASS	660 秒何も送らなかった AP の役が secondary（edge-02）で通る（前は 10 分で応答がなくなった）
+K3-p	PASS	660 秒何も送らなかった AP の役が primary（edge-01）で通る
+K4-p	PASS	その間に AP の役（p）の TLS はつなぎ直していない（つないだ回数 1）
+K4-s	PASS	その間に AP の役（s）の TLS はつなぎ直していない（つないだ回数 1）
+N0	PASS	止める前は両方のスロットを持つ AP で通る
+N0b	PASS	止める前に発報している ProbeFailing はない（なし）
+N1	PASS	止めている間、両方のスロットを持つ AP は secondary に切り替わって通る（2 回目、17 秒）
+N1b	PASS	その応答は secondary から返っている（1）
+N2	PASS	外形監視の ProbeFailing が primary だけで発報した（止めてから 257 秒）
+N3	PASS	戻すと ProbeFailing が解消した（戻してから 67 秒）
+N4	PASS	戻すと primary だけの AP でまた通る（1 回目）
+C1	PASS	試験のテナント（ld・s5a）が残っていない（0）
+C2	PASS	空いていないポートは probe の分だけ（probe:20000）
+C3	PASS	edge-01 のテナントのコンテナは probe だけ（radsecproxy-probe ）
+C3	PASS	edge-02 のテナントのコンテナは probe だけ（radsecproxy-probe ）

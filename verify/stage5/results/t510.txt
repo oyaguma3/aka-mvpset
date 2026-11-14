@@ -1,0 +1,48 @@
+== restart-time.txt
+dockerd が応えるまで 15.6 秒、agent が ok になるまで 16.8 秒（手元から測った）
+== upgrade-time.txt
+dockerd が応えるまで 26.7 秒、agent が ok になるまで 73.9 秒（手元から測った）
+== before-restart
+# before-restart 2026-11-13 21:11:53
+versions: dockerd 29.9.2 containerd v2.4.2 dpkg containerd.io=2.4.2-3~debian.13~trixie docker-ce=5:29.9.2-1~debian.13~trixie 
+hold: cloud-init docker-ce docker-ce-cli docker-ce-rootless-extras 
+running: 154 all: 154
+conntrack-estab（テナントのポート宛て）: 740
+log-bytes: 102395876
+dockerd: Wed 2026-11-11 23:44:44 JST containerd: Wed 2026-11-11 23:44:43 JST
+edge: agent ok=True docker=True used=150
+loadgen: {"t": 1794571905, "connected": 738, "connects": 2955, "connect_failed": 0, "lost": 0, "closed_by_churn": 2217, "sent": 21961, "received": 21961, "accept": 0, "reject": 21961, "challenge": 0, "other": 0}
+== after-restart
+# after-restart 2026-11-13 21:13:15
+versions: dockerd 29.9.2 containerd v2.4.2 dpkg containerd.io=2.4.2-3~debian.13~trixie docker-ce=5:29.9.2-1~debian.13~trixie 
+hold: cloud-init docker-ce docker-ce-cli docker-ce-rootless-extras 
+running: 154 all: 154
+conntrack-estab（テナントのポート宛て）: 739
+log-bytes: 102511683
+dockerd: Fri 2026-11-13 21:12:13 JST containerd: Wed 2026-11-11 23:44:43 JST
+edge: agent ok=True docker=True used=150
+loadgen: {"t": 1794571995, "connected": 738, "connects": 3045, "connect_failed": 0, "lost": 0, "closed_by_churn": 2307, "sent": 22852, "received": 22852, "accept": 0, "reject": 22852, "challenge": 0, "other": 0}
+== before-upgrade
+# before-upgrade 2026-11-13 22:14:53
+versions: dockerd 29.9.2 containerd v2.4.2 dpkg containerd.io=2.4.2-3~debian.13~trixie docker-ce=5:29.9.2-1~debian.13~trixie 
+hold: cloud-init docker-ce docker-ce-cli docker-ce-rootless-extras 
+running: 154 all: 154
+conntrack-estab（テナントのポート宛て）: 739
+log-bytes: 107546259
+dockerd: Fri 2026-11-13 21:12:13 JST containerd: Wed 2026-11-11 23:44:43 JST
+edge: agent ok=True docker=True used=150
+loadgen: {"t": 1794575685, "connected": 739, "connects": 6733, "connect_failed": 0, "lost": 1, "closed_by_churn": 5993, "sent": 59359, "received": 59359, "accept": 0, "reject": 59359, "challenge": 0, "other": 0}
+== after-upgrade
+# after-upgrade 2026-11-13 22:17:14
+versions: dockerd 29.9.3 containerd v2.4.2 dpkg containerd.io=2.4.2-4~debian.13~trixie docker-ce=5:29.9.3-1~debian.13~trixie 
+hold: cloud-init containerd.io docker-ce docker-ce-cli docker-ce-rootless-extras 
+running: 154 all: 154
+conntrack-estab（テナントのポート宛て）: 740
+log-bytes: 107740344
+dockerd: Fri 2026-11-13 22:15:24 JST containerd: Fri 2026-11-13 22:15:10 JST
+edge: agent ok=True docker=True used=150
+loadgen: {"t": 1794575835, "connected": 736, "connects": 6880, "connect_failed": 0, "lost": 1, "closed_by_churn": 6143, "sent": 60844, "received": 60844, "accept": 0, "reject": 60844, "challenge": 0, "other": 0}
+== 再起動の前後で変わったコンテナ
+154 → 154 変わったもの []
+== 更新の前後で変わったコンテナ
+154 → 154 変わったもの [('/radsec-edge-radsec-edge-agent-1', ['2026-11-11T16:53:42.116633713Z', '0', 'running'], ['2026-11-13T13:16:12.350885872Z', '1', 'running'])]
