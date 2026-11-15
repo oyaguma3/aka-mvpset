@@ -153,7 +153,16 @@ deploy/bin/build-images "$WORK"
 ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 ```
 
-- 手元で `versions.env` のコミットからビルドする（VPS の上ではビルドしない。概要 §17.3）。束は役ごと（`data`・`mgmt`・`edge`・`mon`）。`images.txt` に名前と ID を残す。
+- `versions.env` のコミットからビルドする（VPS の上ではビルドしない。概要 §17.3）。束は役ごと（`data`・`mgmt`・`edge`・`mon`）。`images.txt` に名前と ID、`SHA256SUMS` に作ったファイルの SHA-256 を残す。外形監視の eapaka_test も `versions.env` の `EAPAKA_TEST_REF` から作る。
+- リリース（タグ `mvpset-v*`）の束は CI が作る（`.github/workflows/build-images.yml`。段階 6-1 の K6-6）。手で動かすこともできる（GitHub の Actions の画面か `gh workflow run build-images.yml -R oyaguma3/aka-mvpset --ref <ブランチ>`）。CI は各リポジトリを固定のコミットで取り出して同じ `build-images` を動かし、束を読み込み直して ID が `images.txt` と一致することを確かめ、artifact（90 日）に置く。取り方:
+
+  ```bash
+  gh run list -R oyaguma3/aka-mvpset --workflow build-images.yml
+  gh run download <run の ID> -R oyaguma3/aka-mvpset -D "$WORK/ci-<タグ>"
+  cd "$WORK/ci-<タグ>/mvpset-images-<タグ>-<短いコミット>" && sha256sum -c SHA256SUMS
+  ```
+
+  中身は手元のビルドと同じ形（`images/`・`src/`・`bin/`）。radsecproxy のイメージは作るたびに ID が変わるので、CI の束をエッジに読み込むと全テナントが「古い」になる（§8.4）。artifact は GitHub にログインした人なら取れる（公開のソースから作った秘密を含まないもの。レジストリには置かない）。
 - イメージの名前: aka-radius・aka-provisioner・radsec-ca・radsec-edge は `<名前>:<短いコミット>` なので、各 `.env` の `RADIUS_VERSION`・`PROVISIONER_VERSION`・`CA_VERSION`・`EDGE_VERSION` に `images.txt` の最後の行の値を入れる。aka-vecgen・aka-ossbss は compose に `image:` がないので、compose が付ける `aka-vecgen-aka-vecgen:latest`・`aka-ossbss-aka-ossbss:latest`（プロジェクト名はディレクトリの名前）に合わせてある。
 - 起動は `docker compose up -d --no-build`（ビルドしない）。
 - radsecproxy のイメージ（`radsec-edge/radsecproxy:1.11.4-pc1`）も毎回作り直す（Debian の更新、とくに OpenSSL を届けるため。段階 6-0 の U6-6）。作り直すと ID が変わるので、エッジに読み込むと全テナントが「古い」になり、§8.4 の手順で段階的に反映し直す。前のイメージはエッジで消さない（前の形に戻すのに使う。agent が `keep-` のタグを付けて残す）。
@@ -192,7 +201,7 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 1. 束を読み込み、`.env` の `EDGE_VERSION` を改めて `docker compose up -d --no-build radsec-edge radsec-edge-agent fluent-bit`（§6・§7）。テナントのコンテナはそのまま動き、AP の接続は切れない。
 2. 管理API の `/status` の `templates.staleTenants`（aka-ossbss のエッジの詳細の「古いテナント」）が出るまで待つ（整合のループは 1 分ごと）。
 3. aka-ossbss で、まず外形監視のテナントを「今の形で反映し直す」。外形監視（`aka_probe_success`）と警告に問題がないことを確かめる。
-4. 残りを少しずつ選んで反映し直す。1 件でも失敗したら止まる（Slack は `RADSEC_ROLLOUT_STOPPED` のログでは知らせないので、エッジの詳細とダッシュボードで見る）。
+4. 残りを少しずつ選んで反映し直す。1 件でも失敗したら止まる（Slack に警告 `EdgeApplyFailed` が出る。§9.5。中身はエッジの詳細とダッシュボードで見る）。
 5. そのエッジの古いテナントがなくなってから、次のエッジを上げる。
 
 - 前の形に戻すときも、aka-ossbss のエッジの詳細で選ぶ（「前の形に戻す」）。
@@ -218,7 +227,7 @@ deploy/bin/push-host "$WORK/out" mon files node monitor
   ssh -L 3000:10.82.0.1:3000 -L 9090:10.82.0.1:9090 -L 9093:10.82.0.1:9093 aka-mon
   ```
 
-  Grafana の `admin` の初めのパスワードは `/opt/aka-monitor/secrets/grafana-admin`。ダッシュボード「aka-mvpset の概要」を置いてある。
+  Grafana の `admin` の初めのパスワードは `/opt/aka-monitor/secrets/grafana-admin`。ダッシュボード「aka-mvpset の概要」（機械の状態）と「aka-mvpset のアプリの数」（§9.5）を置いてある。
 
 ### 9.2 数値と警告
 
@@ -232,7 +241,7 @@ deploy/bin/push-host "$WORK/out" mon files node monitor
 | `probe.sh`（監視ノード） | 1 分 | `aka_probe_success`、`aka_probe_consecutive_failures`、`aka_probe_last_run_seconds` |
 
 - `certs.sh` は `openssl s_client` でサーバー証明書を読む。mTLS の口は TLS 1.3 ではクライアント証明書を求める前に証明書が届くので読めるが、**各ノードのログに 1 時間に 1 回、クライアント証明書のない接続の拒否が出る**（aka-radius の `ADMIN_CLIENT_REJECTED` など。送信元は自分のアドレス）。radsec-ca の管理API はホストに公開しないので、コマンド（`server-cert`）で読む。
-- 警告の規則は `deploy/monitor/prometheus/rules.yml`: ノードが落ちた、ディスク 80%、メモリー、エッジの使用量が容量の目安 2.8 GiB 超（30 分。T5-25）、数値が 5 分古い、Docker に届かない、コンテナが止まった・unhealthy、エッジの dockerd・containerd が 400 MiB 超（決定事項 28）、ハンドシェイクが 180 秒より古い、aka-ossbss の公開のホスト名に届かない、証明書の期限 14 日前、CRL の次の更新まで 2 日、バックアップが 26 時間ない・失敗、外形監視が 3 回続けて失敗・結果が 5 分ない。
+- 警告の規則は `deploy/monitor/prometheus/rules.yml`: ノードが落ちた、ディスク 80%、メモリー、エッジの使用量が容量の目安 2.8 GiB 超（30 分。T5-25）、数値が 5 分古い、Docker に届かない、コンテナが止まった・unhealthy、エッジの dockerd・containerd が 400 MiB 超（決定事項 28）、ハンドシェイクが 180 秒より古い、aka-ossbss の公開のホスト名に届かない、証明書の期限 14 日前、CRL の次の更新まで 2 日、バックアップが 26 時間ない・失敗、外形監視が 3 回続けて失敗・結果が 5 分ない。アプリの数からの警告は §9.5。
 
 ### 9.3 Slack への通知
 
@@ -247,6 +256,38 @@ Alertmanager は警告の名前とノードでまとめ（`group_by`）、最初
 1. aka-ossbss で監視専用のテナント（例 slug `probe`）を作り、RadSec を有効にして 2 台に置き、AP を 1 台登録して証明書を発行する。監視専用の IMSI を両側に登録し、認可は監視の SSID だけにする（最小）。課金レコードに出るので、外部のシステムではこのテナントの ID で除く。
 2. 監視ノードの `/opt/aka-probe` に `deploy/probe/` を置き、`probe.env`（600。`probe.env.example`）、`conf/ap.pem`・`ap.key`・`server-ca.pem`（`chown -R 65534:65534 conf`）、`/usr/local/bin/eapaka_test`（`build-images` の `bin/`）を置く。
 3. `probe.sh conf` で radsecproxy の設定を作り、`PROBE_VERSION` を `images.txt` の値にして `docker compose up -d --no-build`。`deploy/probe/systemd/` の `aka-probe.timer` を有効にする。
+
+### 9.5 アプリの数（KPI）
+
+データ面と管理面の Fluent Bit が、ログの `event_id` ごとの行数を数え、Prometheus が `wg-ops` で取る（段階 6-1。概要 §18.13 の S6-7、確認事項 K6-2〜K6-5）。ノードのコードとリポジトリの Fluent Bit の設定は変えず、`deploy/node/metrics/` の設定がノードの設定を `includes` で読んで、数える処理と口（2021）だけを足す。
+
+| 数（counter） | ノード | ラベル |
+|---|---|---|
+| `aka_auth_log_events_total` | data（aka-radius の auth） | `event_id`・`level`・`reason`・`source_id`・`eap_type` |
+| `aka_acct_log_events_total` | data（aka-radius の acct） | `event_id`・`level`・`reason` |
+| `aka_vecgen_log_events_total` | data（aka-vecgen） | `event_id`・`level`・`reason` |
+| `aka_ossbss_log_events_total`・`aka_provisioner_log_events_total` | mgmt | `event_id`・`level` |
+| `fluentbit_*`（Fluent Bit 自身。出力の誤り・捨てた行など） | data・mgmt | `name` など |
+
+- IMSI・テナント・NAS-Identifier はラベルにしない。項目のない行は、そのラベルなしで数える。`eap_type` は EAP の種類の番号（23 が EAP-AKA、50 が EAP-AKA'）。
+- `event_id` の意味は aka-radius の D-04 ログ仕様設計書、aka-vecgen・aka-ossbss の運用ガイド。拒否はひとまとめの `event_id` がないので、D-04 で結果が Reject になる `event_id` を並べた記録の規則 `aka:auth_reject:rate5m`・`aka:auth_reject_by_reason:rate5m` で見る（成功は `aka:auth_success:rate5m`）。
+- `RADIUS_OVERLOAD` は 1 秒に 1 行に間引くので、行数は捨てた要求の数ではない（起きたかどうかを見る）。
+- 数の系列は、その `event_id` の行が初めて来たときにでき、Fluent Bit を起動し直すと消えて 0 から数え直す。まれに起きる `event_id` の警告は、`increase()` に加えて「5 分（10 分）前にはなかった系列」も見る（Prometheus が 5 分を超えて口を取れなかった後に戻ると、起きていなくても 1 回知らせることがある。そのときは `KpiScrapeFailed` も出ている）。
+- 遅延はログに 1 回ごとの時間がないので、外形監視の時間（`aka_probe_duration_seconds`）と、規模の試験の負荷の道具で見る。
+
+置き方（data の例。mgmt は `/opt/aka-provisioner/.env` と `compose.mgmt.yaml`）:
+
+```bash
+deploy/bin/render "$INV" "$WORK/out"
+deploy/bin/push-host "$WORK/out" data files nft   # /opt/aka-node/metrics/ と、監視ノードからの 2021 の規則（60 秒の内に aka-nft-confirm）
+ssh aka-data   # /opt/aka-radius/deployments/.env に、env-hints.txt の AKA_METRICS_ADDR と、COMPOSE_FILE の最後に :/opt/aka-node/metrics/compose.data.yaml を足す
+cd /opt/aka-radius/deployments && docker compose up -d --no-build fluent-bit   # Fluent Bit だけを作り直す（ほかのコンテナは変わらない）
+deploy/bin/push-host "$WORK/out" mon files monitor  # 取り先 fluent-bit、規則、ダッシュボード
+```
+
+- Fluent Bit を作り直す数秒の間、各コンテナのログは Docker のログドライバーがためる（`fluentd-async`）。
+- 警告（`deploy/monitor/prometheus/rules.yml` の `aka-kpi`）: 取得先の遮断器が開いた（`AuthSourceCircuitOpen`、critical）、取得先の一時的な誤りか契約に合わない応答が 10 分続く（`AuthSourceErrors`）、RADIUS の過負荷（`RadiusOverload`）、エッジへの反映の失敗か反映し直しの止まり（`EdgeApplyFailed`）、数の口を 5 分取れない（`KpiScrapeFailed`）。拒否の率・Accounting の誤り・課金の締めの失敗は警告にしない（ダッシュボードで見る）。
+- 規則を変えたら、手元で試験を流す: `docker run --rm -v "$PWD/deploy:/d:ro" --entrypoint promtool prom/prometheus:v3.15.1 test rules /d/monitor-tests/rules_test.yml`
 
 ## 10. バックアップとログの取得
 
