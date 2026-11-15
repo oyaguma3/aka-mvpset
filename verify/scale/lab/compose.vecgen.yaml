@@ -1,0 +1,4 @@
+# 手元の通し（verify/scale/lab）で aka-vecgen の compose（compose.yaml）に重ねる設定。deploy/bin/build-images が作ったイメージを使う（ビルドしない）。
+services:
+  aka-vecgen:
+    image: aka-vecgen-aka-vecgen:latest

@@ -1,0 +1,35 @@
+# 手元の通し（verify/scale/lab）で aka-radius の compose（deployments/docker-compose.yml と docker-compose.aka-av.yml）に重ねる設定。
+# SCALE_LAB（lab.sh が渡す）は、この重ね合わせと edge.conf のあるディレクトリ、SCALE_PKI は試験の証明書のディレクトリ。
+services:
+  # radsecproxy は起動のときに上流の名前を IP に引いたまま使うので、auth と acct の IP を決める
+  auth:
+    networks:
+      default:
+        ipv4_address: 172.30.251.11
+  acct:
+    networks:
+      default:
+        ipv4_address: 172.30.251.12
+  edge:
+    image: radsec-edge/radsecproxy:1.11.4-pc1
+    command: ["radsecproxy", "-f", "-c", "/etc/scale/edge.conf"]
+    volumes:
+      - ${SCALE_LAB:?}/edge.conf:/etc/scale/edge.conf:ro
+      - ${SCALE_PKI:?}:/pki:ro
+    depends_on:
+      auth:
+        condition: service_healthy
+      acct:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "127.0.0.1:12083:2083"
+    networks:
+      default:
+        ipv4_address: 172.30.251.42
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.251.0/24
