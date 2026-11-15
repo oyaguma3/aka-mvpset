@@ -1,0 +1,106 @@
+# versions.env のコミットからイメージを作り、役ごとの束を artifact に置く（docs/deployment.md §7、概要 §18.13 の S6-8、確認事項 K6-6）。
+# mvpset-v* のタグを push したときと、手で動かしたとき（選んだブランチの versions.env）に動く。
+# 6 つのノードのリポジトリと eapaka_test を versions.env の固定のコミットで取り出し、手元と同じ deploy/bin/build-images を動かす。
+# 束は公開のソースから作った秘密を含まないもので、公開のリポジトリの artifact は GitHub にログインした人なら取れる（レジストリには置かない。概要 §17.3）。
+# 運用者は gh run download で取り、sha256sum -c SHA256SUMS で確かめてから、今の経路で各ノードへ送る。
+name: build-images
+
+on:
+  push:
+    tags: ["mvpset-v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-images-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: イメージの束
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: aka-mvpset
+          persist-credentials: false
+
+      - name: versions.env を読む
+        id: v
+        run: |
+          grep -E '^[A-Z_]+_REF=[0-9a-f]{40}$' aka-mvpset/versions.env | tee -a "$GITHUB_OUTPUT"
+          # artifact の名前に使えない「/」を置き換える
+          echo "name=mvpset-images-${GITHUB_REF_NAME//\//-}-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/aka-vecgen, ref: "${{ steps.v.outputs.VECGEN_REF }}", path: src/aka-vecgen, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/aka-radius, ref: "${{ steps.v.outputs.RADIUS_REF }}", path: src/aka-radius, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/aka-provisioner, ref: "${{ steps.v.outputs.PROVISIONER_REF }}", path: src/aka-provisioner, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/aka-ossbss, ref: "${{ steps.v.outputs.OSSBSS_REF }}", path: src/aka-ossbss, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/radsec-ca, ref: "${{ steps.v.outputs.CA_REF }}", path: src/radsec-ca, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/radsec-edge, ref: "${{ steps.v.outputs.EDGE_REF }}", path: src/radsec-edge, persist-credentials: false}
+      - uses: actions/checkout@v7
+        with: {repository: oyaguma3/eapaka_test, ref: "${{ steps.v.outputs.EAPAKA_TEST_REF }}", path: src/eapaka_test, persist-credentials: false}
+
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: src/eapaka_test/go.mod
+          cache: false
+
+      - name: ビルドして束ねる
+        env:
+          AKA_SRC: ${{ github.workspace }}/src
+        run: aka-mvpset/deploy/bin/build-images "$RUNNER_TEMP/out"
+
+      - name: 束を読み込み直して、イメージの ID が images.txt と一致することを確かめる
+        working-directory: ${{ runner.temp }}/out
+        run: |
+          sha256sum -c SHA256SUMS
+          names=$(grep -v '^#' images/images.txt | cut -d' ' -f1)
+          # shellcheck disable=SC2086
+          docker image rm $names > /dev/null
+          for r in data mgmt edge mon; do gunzip -c "images/$r.tar.gz" | docker load; done
+          grep -v '^#' images/images.txt | while read -r name id; do
+            got=$(docker image inspect -f '{{.Id}}' "$name")
+            [ "$got" = "$id" ] || { echo "::error::$name の ID が違う: $got（images.txt は $id）"; exit 1; }
+            echo "$name $id 一致"
+          done
+          file bin/eapaka_test
+
+      - name: 一覧を記録に出す
+        working-directory: ${{ runner.temp }}/out
+        run: |
+          {
+            echo "### イメージの束（${{ steps.v.outputs.name }}）"
+            echo '```'
+            cat images/images.txt
+            echo '```'
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.v.outputs.name }}
+          path: |
+            ${{ runner.temp }}/out/images/data.tar.gz
+            ${{ runner.temp }}/out/images/mgmt.tar.gz
+            ${{ runner.temp }}/out/images/edge.tar.gz
+            ${{ runner.temp }}/out/images/mon.tar.gz
+            ${{ runner.temp }}/out/images/images.txt
+            ${{ runner.temp }}/out/src/*.tar
+            ${{ runner.temp }}/out/bin/eapaka_test
+            ${{ runner.temp }}/out/SHA256SUMS
+          retention-days: 90
+          if-no-files-found: error
+          # 束は gzip 済みなので、zip の圧縮を重ねない
+          compression-level: 0

@@ -2,8 +2,10 @@
 # versions.env のコミットからイメージを手元でビルドし、役ごとの束にする（docs/deployment.md §7、確認事項 D9）。
 #   deploy/bin/build-images <作業ディレクトリ>
 # 出力: <作業>/images/<役>.tar.gz（docker save）、<作業>/images/images.txt（名前と ID）、<作業>/src/<リポジトリ>.tar（/opt に置く中身、git archive）、
-#       <作業>/bin/eapaka_test（外形監視）。VPS では docker load して、各 .env の *_VERSION を下の短いコミットにし、up --no-build で起動する。
+#       <作業>/bin/eapaka_test（外形監視。versions.env の EAPAKA_TEST_REF）、<作業>/SHA256SUMS（ここで作ったファイルの SHA-256。sha256sum -c で確かめる）。
+#       VPS では docker load して、各 .env の *_VERSION を下の短いコミットにし、up --no-build で起動する。
 # イメージの名前: compose に image: がないもの（aka-vecgen・aka-ossbss）は compose が付ける <プロジェクト>-<サービス>:latest に合わせる。
+# CI（.github/workflows/build-images.yml）は、各リポジトリを固定のコミットで取り出したディレクトリを AKA_SRC に渡して同じものを作る（確認事項 K6-6）。
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
@@ -43,8 +45,13 @@ build radsec-edge "$EDGE_REF" radsec-edge/radsecproxy:1.11.4-pc1 images/radsecpr
 MV=$(git -C "$ROOT" rev-parse --short=7 HEAD)
 echo "== aka-probe（aka-mvpset $MV）"
 docker build -q -t "aka-probe:$MV" "$ROOT/deploy/probe" > /dev/null
-echo "== eapaka_test（$(git -C "$SRC/eapaka_test" rev-parse --short=7 HEAD)）"
-(cd "$SRC/eapaka_test" && CGO_ENABLED=0 go build -trimpath -o "$WORK/bin/eapaka_test" ./cmd/eapaka_test)
+# eapaka_test は /opt に置かないので、src/ には写さずに build/ でビルドする
+echo "== eapaka_test $(s "$EAPAKA_TEST_REF")"
+git -C "$SRC/eapaka_test" cat-file -e "$EAPAKA_TEST_REF^{commit}" 2> /dev/null || { echo "eapaka_test に $EAPAKA_TEST_REF がない（git fetch する）" >&2; exit 1; }
+rm -rf "${WORK:?}/build/eapaka_test"
+mkdir -p "$WORK/build/eapaka_test"
+git -C "$SRC/eapaka_test" archive --format=tar "$EAPAKA_TEST_REF" | tar -xf - -C "$WORK/build/eapaka_test"
+(cd "$WORK/build/eapaka_test" && CGO_ENABLED=0 go build -trimpath -o "$WORK/bin/eapaka_test" ./cmd/eapaka_test)
 
 # 公開のイメージは VPS で取り込む（docs/deployment.md §7）。ここではビルドしたものだけを束ねる
 data=(aka-vecgen-aka-vecgen:latest "aka-radius:$(s "$RADIUS_REF")")
@@ -59,6 +66,10 @@ done
 {
 	echo "# deploy/bin/build-images（aka-mvpset $MV、$(date -Is)）。名前 ID"
 	for i in "${data[@]}" "${mgmt[@]}" "${edge[@]}" "${mon[@]}"; do echo "$i $(docker image inspect -f '{{.Id}}' "$i")"; done
+	echo "# eapaka_test: $(s "$EAPAKA_TEST_REF")"
+	# 最後の行は手元の入れ替えの台本が読むので、形を変えない
 	echo "# *_VERSION: VECGEN=$(s "$VECGEN_REF") RADIUS=$(s "$RADIUS_REF") PROVISIONER=$(s "$PROVISIONER_REF") OSSBSS=$(s "$OSSBSS_REF") CA=$(s "$CA_REF") EDGE=$(s "$EDGE_REF") PROBE=$MV"
 } > "$WORK/images/images.txt"
+(cd "$WORK" && sha256sum images/data.tar.gz images/mgmt.tar.gz images/edge.tar.gz images/mon.tar.gz images/images.txt \
+	src/aka-vecgen.tar src/aka-radius.tar src/aka-provisioner.tar src/aka-ossbss.tar src/radsec-ca.tar src/radsec-edge.tar bin/eapaka_test) > "$WORK/SHA256SUMS"
 cat "$WORK/images/images.txt"
