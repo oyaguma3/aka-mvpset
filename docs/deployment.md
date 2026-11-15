@@ -382,4 +382,5 @@ aka-ossbss の運用ガイド 14.3 の順に、本書の手順を当てる。
 - 5-3〜5-6（VPS の上。概要 §18.12・§20.5、`verify/stage5/README.md`）: 最初の導入と閉じ方（K1〜K3）、systemd の単位の起動の順（nftables → WireGuard → docker）、各ノードの導入、下流 5 つへの接続、Tunnel と公開のホスト名、外形監視、Slack への通知（[発生]・[解消]）、毎日のバックアップと ops-pc の取得、データ面と管理面を写しから戻す練習、インターネット越しの AP と実際の送信元のアドレス、エッジ 1 台に 150 テナントの長い時間の試験、`systemctl restart docker` と docker-ce・containerd.io の更新（live-restore で接続が続き、更新ではエッジの agent が約 1 分で作り直される）。
 - 5-6 で直したもの: SSH のセッションの溜まり（`ClientAlive*` と `nc -N`。T5-14）、HUP を受けたコンテナを起動のときに起こす `aka-compose-up.service`（T5-15）、ops-pc の WireGuard の見張り（T5-16）、containerd.io の固定（T5-24）、監視の段で規則が変わったら Prometheus・Alertmanager を再起動する、エッジの使用量の警告 `EdgeMemoryHigh` と容量の目安（§14。T5-25）。
 - 6-0（VPS の上。概要 §18.14）: エッジを 1 台ずつ上げてもテナントのコンテナが作り直されないこと、古いテナントを aka-ossbss で選んで今の形に反映し直し、前の形に戻せること（§8.4）、エッジのバックアップを radsec-edge を止めずに取れること（§10）。
+- 6-1（VPS の上と CI。概要 §18.14）: データ面・管理面の Fluent Bit がログの `event_id` を数え、Prometheus が取り、外形監視の認証が数えられること、警告の規則（promtool の試験）、ダッシュボード（§9.5）。CI で束を作り、artifact を取って `SHA256SUMS` で確かめられること（§7）。
 - 残したもの（段階 6）: 各ノードの運用ガイドへの注記（HUP、Docker の更新での agent）、顧客を収容する前の作り直し（S5-2）。
