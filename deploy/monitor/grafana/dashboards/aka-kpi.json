@@ -1,0 +1,386 @@
+{
+  "title": "aka-mvpset のアプリの数",
+  "uid": "aka-kpi",
+  "schemaVersion": 39,
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "refresh": "1m",
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "認証の成功と拒否（1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "aka:auth_success:rate5m",
+          "legendFormat": "成功",
+          "refId": "A"
+        },
+        {
+          "expr": "aka:auth_reject:rate5m",
+          "legendFormat": "拒否",
+          "refId": "B"
+        }
+      ],
+      "description": "AUTH_SUCCESS と、aka-radius の D-04 で結果が Reject になる event_id の合計（記録の規則 aka:auth_reject:rate5m）。5 分の平均"
+    },
+    {
+      "type": "timeseries",
+      "title": "拒否の理由（1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "aka:auth_reject_by_reason:rate5m",
+          "legendFormat": "{{event_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "EAP の種類（Challenge を送った数、1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (eap_type) (rate(aka_auth_log_events_total{event_id=\"EAP_CHALLENGE_SENT\"}[5m]))",
+          "legendFormat": "{{eap_type}}",
+          "refId": "A"
+        }
+      ],
+      "description": "eap_type は EAP の種類の番号（23 が EAP-AKA、50 が EAP-AKA'）"
+    },
+    {
+      "type": "timeseries",
+      "title": "aka-vecgen の払い出し（1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_id, reason) (rate(aka_vecgen_log_events_total{event_id=~\"AV_ISSUED|AV_REJECTED|AV_FAILED|AV_CLIENT_REJECTED|AV_CLIENT_LOOKUP_ERR\"}[5m]))",
+          "legendFormat": "{{event_id}} {{reason}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "取得先の誤り（取得先別、1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (source_id, event_id) (rate(aka_auth_log_events_total{event_id=~\"VECTOR_.+\"}[5m]))",
+          "legendFormat": "{{source_id}} {{event_id}}",
+          "refId": "A"
+        }
+      ],
+      "description": "VECTOR_REJECTED の 403（加入者がいない・止めてある）は普段も起きる。VECTOR_TEMPORARY_ERR・VECTOR_CONTRACT_VIOLATION が続くと警告 AuthSourceErrors"
+    },
+    {
+      "type": "timeseries",
+      "title": "遮断器の開閉（5 分の回数）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (source_id, event_id) (increase(aka_auth_log_events_total{event_id=~\"CB_OPEN|CB_HALF_OPEN|CB_CLOSE\"}[5m]))",
+          "legendFormat": "{{source_id}} {{event_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "過負荷（5 分の行数。1 秒に 1 行に間引く）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(aka_auth_log_events_total{event_id=\"RADIUS_OVERLOAD\"}[5m]))",
+          "legendFormat": "auth",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(increase(aka_acct_log_events_total{event_id=\"RADIUS_OVERLOAD\"}[5m]))",
+          "legendFormat": "acct",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Accounting（1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 24
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_id) (rate(aka_acct_log_events_total{event_id=~\"ACCT_START|ACCT_INTERIM|ACCT_STOP\"}[5m]))",
+          "legendFormat": "{{event_id}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum(rate(aka_acct_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "WARN・ERROR",
+          "refId": "B"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "エッジの反映（aka-ossbss、1 時間の回数）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 32
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (event_id) (increase(aka_ossbss_log_events_total{event_id=~\"RADSEC_APPLY_FAILED|RADSEC_ROLLOUT_STOPPED|RADSEC_EDGE_UNREACHABLE|RADSEC_SYNC_ERR\"}[1h]))",
+          "legendFormat": "{{event_id}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "外形監視の 1 回の時間（遅延の代わり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 32
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "aka_probe_duration_seconds",
+          "legendFormat": "{{slot}}",
+          "refId": "A"
+        }
+      ],
+      "description": "監視ノードから 2 台のエッジのスロットへ EAP-AKA を最後まで通す時間。aka-radius のログには 1 回ごとの時間がないので、遅延はこれと負荷の道具で見る"
+    },
+    {
+      "type": "timeseries",
+      "title": "ログの WARN・ERROR（アプリ別、1 秒あたり）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (level) (rate(aka_auth_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "auth {{level}}",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (level) (rate(aka_acct_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "acct {{level}}",
+          "refId": "B"
+        },
+        {
+          "expr": "sum by (level) (rate(aka_vecgen_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "vecgen {{level}}",
+          "refId": "C"
+        },
+        {
+          "expr": "sum by (level) (rate(aka_ossbss_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "ossbss {{level}}",
+          "refId": "D"
+        },
+        {
+          "expr": "sum by (level) (rate(aka_provisioner_log_events_total{level=~\"WARN|ERROR\"}[5m]))",
+          "legendFormat": "provisioner {{level}}",
+          "refId": "E"
+        }
+      ]
+    },
+    {
+      "type": "timeseries",
+      "title": "Fluent Bit の出力の誤りと捨てた行（5 分の回数）",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 40
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "sum by (node, name) (increase(fluentbit_output_errors_total[5m]))",
+          "legendFormat": "{{node}} {{name}} 誤り",
+          "refId": "A"
+        },
+        {
+          "expr": "sum by (node, name) (increase(fluentbit_output_dropped_records_total[5m]))",
+          "legendFormat": "{{node}} {{name}} 捨てた",
+          "refId": "B"
+        },
+        {
+          "expr": "up{job=\"fluent-bit\"}",
+          "legendFormat": "{{node}} up",
+          "refId": "C"
+        }
+      ],
+      "description": "ファイルへの出力の誤り・捨てた行が増えると、ログ（と数）が欠ける。up が 0 なら数を取れていない（警告 KpiScrapeFailed）"
+    }
+  ]
+}

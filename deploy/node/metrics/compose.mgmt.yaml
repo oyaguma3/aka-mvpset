@@ -1,0 +1,10 @@
+# 管理面の aka-provisioner の compose に重ねる（docs/deployment.md §9.5、確認事項 K6-3）。/opt/aka-node/metrics/ に置き、
+# /opt/aka-provisioner/.env の COMPOSE_FILE の最後に足し（out/mgmt/env-hints.txt）、AKA_METRICS_ADDR に wg-ops のアドレスを書く。
+# Fluent Bit を、数える処理を足した設定（fluent-bit.mgmt.yaml。aka-provisioner の設定を includes で読む）で起動し、数の口を wg-ops のアドレスで公開する。
+services:
+  fluent-bit:
+    command: ["/fluent-bit/bin/fluent-bit", "-c", "/fluent-bit/etc/metrics.yaml"]
+    ports:
+      - ${AKA_METRICS_ADDR:?}:2021:2021
+    volumes:
+      - /opt/aka-node/metrics/fluent-bit.mgmt.yaml:/fluent-bit/etc/metrics.yaml:ro

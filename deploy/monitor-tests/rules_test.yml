@@ -1,0 +1,155 @@
+# deploy/monitor/prometheus/rules.yml のアプリの数の群（aka-kpi）の試験（docs/deployment.md §9.5、確認事項 K6-5）。監視ノードには写さない。
+#   docker run --rm -v "$PWD/deploy:/d:ro" --entrypoint promtool prom/prometheus:v3.15.1 test rules /d/monitor-tests/rules_test.yml
+# Fluent Bit の数の系列は、その event_id の行が初めて来たときにでき、Fluent Bit を起動し直すと消える（"_" はその時刻に系列がないこと）。
+rule_files:
+  - ../monitor/prometheus/rules.yml
+evaluation_interval: 30s
+tests:
+  # 遮断器: 初めての 1 回（系列ができた）で発報し、5 分たつと消える。2 回目（1 → 2）でも発報する。
+  - interval: 30s
+    input_series:
+      - series: 'aka_auth_log_events_total{event_id="CB_OPEN",level="WARN",source_id="vecgen"}'
+        values: '_x19 1x40 2x20'
+    alert_rule_test:
+      - eval_time: 9m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, source_id: vecgen}
+            exp_annotations: {summary: "取得先 vecgen の遮断器が開いた（開いている間はその取得先の加入者の認証がすべて拒否される。30 秒ごとに試し直す）"}
+      - eval_time: 17m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts: []
+      - eval_time: 31m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, source_id: vecgen}
+            exp_annotations: {summary: "取得先 vecgen の遮断器が開いた（開いている間はその取得先の加入者の認証がすべて拒否される。30 秒ごとに試し直す）"}
+
+  # 遮断器: Fluent Bit を起動し直して系列が消えた後に、また 1 回起きた（1 から数え直す）。
+  - interval: 30s
+    input_series:
+      - series: 'aka_auth_log_events_total{event_id="CB_OPEN",level="WARN",source_id="vecgen"}'
+        values: '3x29 _x40 1x20'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts: []
+      - eval_time: 36m
+        alertname: AuthSourceCircuitOpen
+        exp_alerts:
+          - exp_labels: {severity: critical, source_id: vecgen}
+            exp_annotations: {summary: "取得先 vecgen の遮断器が開いた（開いている間はその取得先の加入者の認証がすべて拒否される。30 秒ごとに試し直す）"}
+
+  # 取得先の誤りが 10 分続く（30 秒に 1 回）。5 分ではまだ。止まって 5 分たつと消える。
+  - interval: 30s
+    input_series:
+      - series: 'aka_auth_log_events_total{event_id="VECTOR_TEMPORARY_ERR",level="ERROR",reason="timeout",source_id="vecgen"}'
+        values: '1+1x40 41x30'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: AuthSourceErrors
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: AuthSourceErrors
+        exp_alerts:
+          - exp_labels: {severity: warning, source_id: vecgen}
+            exp_annotations: {summary: "取得先 vecgen の一時的な誤りか契約に合わない応答が 10 分続いている（その加入者の認証が拒否される）"}
+      - eval_time: 30m
+        alertname: AuthSourceErrors
+        exp_alerts: []
+
+  # 過負荷: acct で初めての 1 回。auth では出ない。
+  - interval: 30s
+    input_series:
+      - series: 'aka_acct_log_events_total{event_id="RADIUS_OVERLOAD",level="WARN"}'
+        values: '_x10 1x30'
+      - series: 'aka_auth_log_events_total{event_id="AUTH_SUCCESS",level="INFO"}'
+        values: '1+1x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: RadiusOverload
+        exp_alerts:
+          - exp_labels: {severity: warning, server: acct}
+            exp_annotations: {summary: "aka-radius の acct が同時に処理する上限を超えて要求を捨てた（RADIUS_OVERLOAD）"}
+      - eval_time: 12m
+        alertname: RadiusOverload
+        exp_alerts: []
+
+  # エッジの反映の失敗と反映し直しの止まり（aka-ossbss）: 初めての 1 回で発報し、10 分たつと消える。
+  - interval: 30s
+    input_series:
+      - series: 'aka_ossbss_log_events_total{event_id="RADSEC_ROLLOUT_STOPPED",level="WARN"}'
+        values: '_x20 1x40'
+      - series: 'aka_ossbss_log_events_total{event_id="RADSEC_SYNC_ERR",level="WARN"}'
+        values: '_x20 1x40'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: EdgeApplyFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, event_id: RADSEC_ROLLOUT_STOPPED}
+            exp_annotations: {summary: "エッジへの反映が失敗したか、反映し直しが止まった（RADSEC_ROLLOUT_STOPPED）。aka-ossbss のダッシュボードとエッジの詳細で確かめる"}
+      - eval_time: 25m
+        alertname: EdgeApplyFailed
+        exp_alerts: []
+
+  # 数の口を 5 分取れない。
+  - interval: 30s
+    input_series:
+      - series: 'up{job="fluent-bit",node="data",instance="x:2021"}'
+        values: '1x4 0x20'
+      - series: 'up{job="fluent-bit",node="mgmt",instance="y:2021"}'
+        values: '1x24'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: KpiScrapeFailed
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: KpiScrapeFailed
+        exp_alerts:
+          - exp_labels: {severity: warning, job: fluent-bit, node: data, instance: "x:2021"}
+            exp_annotations: {summary: "data の Fluent Bit のログの数を 5 分取れない（アプリの数と警告が止まっている）"}
+
+  # 記録の規則: 拒否の理由別と合計、成功。
+  - interval: 30s
+    input_series:
+      - series: 'aka_auth_log_events_total{event_id="AUTH_SUBSCRIBER_NOT_FOUND",level="WARN"}'
+        values: '0+3x20'
+      - series: 'aka_auth_log_events_total{event_id="VECTOR_REJECTED",level="WARN",source_id="vecgen"}'
+        values: '0+3x20'
+      - series: 'aka_auth_log_events_total{event_id="AUTH_SUCCESS",level="INFO"}'
+        values: '0+30x20'
+      - series: 'aka_auth_log_events_total{event_id="PKT_RECV",level="INFO"}'
+        values: '0+90x20'
+    promql_expr_test:
+      - expr: aka:auth_reject:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'aka:auth_reject:rate5m'
+            value: 0.2
+      - expr: aka:auth_reject_by_reason:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'aka:auth_reject_by_reason:rate5m{event_id="AUTH_SUBSCRIBER_NOT_FOUND"}'
+            value: 0.1
+          - labels: 'aka:auth_reject_by_reason:rate5m{event_id="VECTOR_REJECTED"}'
+            value: 0.1
+      - expr: aka:auth_success:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'aka:auth_success:rate5m'
+            value: 1
+
+  # 記録の規則: 拒否が 1 件もないときは、成功を数えていれば 0。
+  - interval: 30s
+    input_series:
+      - series: 'aka_auth_log_events_total{event_id="AUTH_SUCCESS",level="INFO"}'
+        values: '0+30x20'
+    promql_expr_test:
+      - expr: aka:auth_reject:rate5m
+        eval_time: 10m
+        exp_samples:
+          - labels: 'aka:auth_reject:rate5m'
+            value: 0

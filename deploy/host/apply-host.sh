@@ -36,6 +36,13 @@ step_files() {
 	install -o pull -g pull -m 600 /etc/aka/pull_authorized_keys /var/lib/aka-pull/.ssh/authorized_keys
 	install -d -m 755 /opt/aka-node
 	install -m 644 "$D/node/compose.node-exporter.yaml" /opt/aka-node/compose.yaml
+	# データ面・管理面の Fluent Bit に重ねる、ログの数を数える設定（docs/deployment.md §9.5。K6-3）。効かせるのは .env の COMPOSE_FILE に足してから
+	case $role in
+	data | mgmt)
+		install -d -m 755 /opt/aka-node/metrics
+		install -m 644 "$D/node/metrics/fluent-bit.$role.yaml" "$D/node/metrics/compose.$role.yaml" /opt/aka-node/metrics/
+		;;
+	esac
 	sshd -t
 	if [ "$NOSD" = 1 ]; then pkill -HUP -x sshd || true; else systemctl reload ssh; fi
 	if [ "$NOSD" != 1 ]; then

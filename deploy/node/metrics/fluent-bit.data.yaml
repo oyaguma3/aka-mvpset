@@ -1,0 +1,74 @@
+# データ面の Fluent Bit に、ログの event_id ごとの行数を数える処理と、Prometheus が取る口を足す（docs/deployment.md §9.5、確認事項 K6-2・K6-3）。
+# aka-radius のリポジトリの設定（configs/fluent-bit/fluent-bit.yaml。ログをアプリごとのファイルに書く）を includes で読み、ここでは足すだけ。
+# /opt/aka-node/metrics/ に置き、compose.data.yaml で /fluent-bit/etc/metrics.yaml としてマウントする。
+#
+# 数（counter）: aka_auth_log_events_total・aka_acct_log_events_total・aka_vecgen_log_events_total。
+# ラベルは event_id・level と、値の少ない項目だけ（IMSI・テナント・NAS-Identifier は付けない）。項目のない行は、そのラベルなしで数える。
+# 記録ごとに数を出すと同じ系列が重なって出るので、5 秒ごとにまとめて出す（flush_interval_sec）。
+# Fluent Bit を起動し直すと数は 0 から数え直す（Prometheus の rate・increase はそれを扱う）。
+includes:
+  - /fluent-bit/etc/fluent-bit.yaml
+
+pipeline:
+  inputs:
+    # Fluent Bit 自身の数（取りこぼし、出力の誤りなど）
+    - name: fluentbit_metrics
+      tag: aka_metrics
+      scrape_interval: 30
+
+  filters:
+    - name: log_to_metrics
+      alias: metrics_auth
+      match: app.auth
+      tag: aka_metrics
+      metric_mode: counter
+      metric_namespace: aka
+      metric_subsystem: auth
+      metric_name: log_events_total
+      metric_description: aka-radius auth のログの event_id ごとの行数
+      regex: event_id ^[A-Z0-9_]+$
+      label_field:
+        - event_id
+        - level
+        - reason
+        - source_id
+        - eap_type
+      flush_interval_sec: 5
+
+    - name: log_to_metrics
+      alias: metrics_acct
+      match: app.acct
+      tag: aka_metrics
+      metric_mode: counter
+      metric_namespace: aka
+      metric_subsystem: acct
+      metric_name: log_events_total
+      metric_description: aka-radius acct のログの event_id ごとの行数
+      regex: event_id ^[A-Z0-9_]+$
+      label_field:
+        - event_id
+        - level
+        - reason
+      flush_interval_sec: 5
+
+    - name: log_to_metrics
+      alias: metrics_vecgen
+      match: app.vecgen
+      tag: aka_metrics
+      metric_mode: counter
+      metric_namespace: aka
+      metric_subsystem: vecgen
+      metric_name: log_events_total
+      metric_description: aka-vecgen のログの event_id ごとの行数
+      regex: event_id ^[A-Z0-9_]+$
+      label_field:
+        - event_id
+        - level
+        - reason
+      flush_interval_sec: 5
+
+  outputs:
+    - name: prometheus_exporter
+      match: aka_metrics
+      host: 0.0.0.0
+      port: 2021

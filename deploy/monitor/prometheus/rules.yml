@@ -96,3 +96,51 @@ groups:
         expr: time() - aka_probe_last_run_seconds > 300
         labels: {severity: critical}
         annotations: {summary: "外形監視の結果が 5 分届いていない（{{ $labels.slot }}）"}
+  # アプリの数（docs/deployment.md §9.5、確認事項 K6-4・K6-5）。データ面・管理面の Fluent Bit がログの event_id ごとの行数を数える（deploy/node/metrics/）。
+  # 数の系列は、その event_id の行が初めて来たときにでき、Fluent Bit を起動し直すと消えて 0 から数え直す。increase() は最初の 1 回を
+  # 拾えないので、まれに起きる event_id の警告は「5 分（10 分）前にはなかった系列」も合わせて見る（unless … offset）。
+  - name: aka-kpi
+    rules:
+      # 認証の成功と拒否（拒否は aka-radius の D-04 ログ仕様設計書で結果が Reject になる event_id。1 回の拒否に 1 行）
+      - record: aka:auth_success:rate5m
+        expr: sum(rate(aka_auth_log_events_total{event_id="AUTH_SUCCESS"}[5m]))
+      - record: aka:auth_reject_by_reason:rate5m
+        expr: >-
+          sum by (event_id) (rate(aka_auth_log_events_total{event_id=~"EAP_IDENTITY_INVALID|EAP_UNSUPPORTED_TYPE|EAP_PARSE_ERR|EAP_CTX_NOT_FOUND|EAP_UNEXPECTED_IDENTITY|EAP_UNKNOWN_SUBTYPE|EAP_STATE_ERR|EAP_AUTH_REJECT|EAP_CLIENT_ERROR|AUTH_RESYNC_LIMIT|AUTH_MAC_INVALID|AUTH_RES_MISMATCH|AUTH_VERIFY_FAIL|EAP_CTX_CREATE_ERR|EAP_CTX_UPDATE_ERR|EAP_CTX_DECODE_ERR|EAP_CTX_INVALID|EAP_BUILD_ERR|AUTH_SUBSCRIBER_NOT_FOUND|AUTH_SUBSCRIBER_INACTIVE|AUTH_SUBSCRIBER_TERMINATED|AUTH_SUBSCRIBER_INVALID|AUTH_SUBSCRIBER_LOOKUP_ERR|AUTH_STAMP_MISSING|AUTH_STAMP_MULTIPLE|AUTH_STAMP_INVALID|AUTH_STAMP_LOOKUP_ERR|AUTH_POLICY_DENIED|VECTOR_REJECTED|VECTOR_TEMPORARY_ERR|VECTOR_CONTRACT_VIOLATION|VECTOR_CIRCUIT_OPEN|VECTOR_SOURCE_UNKNOWN|VECTOR_SOURCE_LOOKUP_ERR|VECTOR_UNKNOWN_ERR|SESSION_CREATE_ERR"}[5m]))
+      # 拒否が 1 件もないと値がなくなるので、成功を数えているときは 0 を出す（Fluent Bit の数が取れないときは値なし。KpiScrapeFailed）
+      - record: aka:auth_reject:rate5m
+        expr: sum(aka:auth_reject_by_reason:rate5m) or aka:auth_success:rate5m * 0
+      - alert: AuthSourceCircuitOpen
+        expr: >-
+          sum by (source_id) (increase(aka_auth_log_events_total{event_id="CB_OPEN"}[5m])) > 0
+          or sum by (source_id) (aka_auth_log_events_total{event_id="CB_OPEN"} unless aka_auth_log_events_total{event_id="CB_OPEN"} offset 5m)
+        labels: {severity: critical}
+        annotations: {summary: "取得先 {{ $labels.source_id }} の遮断器が開いた（開いている間はその取得先の加入者の認証がすべて拒否される。30 秒ごとに試し直す）"}
+      - alert: AuthSourceErrors
+        expr: sum by (source_id) (rate(aka_auth_log_events_total{event_id=~"VECTOR_TEMPORARY_ERR|VECTOR_CONTRACT_VIOLATION"}[5m])) > 0
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "取得先 {{ $labels.source_id }} の一時的な誤りか契約に合わない応答が 10 分続いている（その加入者の認証が拒否される）"}
+      - alert: RadiusOverload
+        expr: >-
+          sum(increase(aka_auth_log_events_total{event_id="RADIUS_OVERLOAD"}[5m])) > 0
+          or sum(aka_auth_log_events_total{event_id="RADIUS_OVERLOAD"} unless aka_auth_log_events_total{event_id="RADIUS_OVERLOAD"} offset 5m)
+        labels: {severity: warning, server: auth}
+        annotations: {summary: "aka-radius の auth が同時に処理する上限を超えて要求を捨てた（RADIUS_OVERLOAD）"}
+      - alert: RadiusOverload
+        expr: >-
+          sum(increase(aka_acct_log_events_total{event_id="RADIUS_OVERLOAD"}[5m])) > 0
+          or sum(aka_acct_log_events_total{event_id="RADIUS_OVERLOAD"} unless aka_acct_log_events_total{event_id="RADIUS_OVERLOAD"} offset 5m)
+        labels: {severity: warning, server: acct}
+        annotations: {summary: "aka-radius の acct が同時に処理する上限を超えて要求を捨てた（RADIUS_OVERLOAD）"}
+      - alert: EdgeApplyFailed
+        expr: >-
+          sum by (event_id) (increase(aka_ossbss_log_events_total{event_id=~"RADSEC_APPLY_FAILED|RADSEC_ROLLOUT_STOPPED"}[10m])) > 0
+          or sum by (event_id) (aka_ossbss_log_events_total{event_id=~"RADSEC_APPLY_FAILED|RADSEC_ROLLOUT_STOPPED"} unless aka_ossbss_log_events_total{event_id=~"RADSEC_APPLY_FAILED|RADSEC_ROLLOUT_STOPPED"} offset 10m)
+        labels: {severity: warning}
+        annotations: {summary: "エッジへの反映が失敗したか、反映し直しが止まった（{{ $labels.event_id }}）。aka-ossbss のダッシュボードとエッジの詳細で確かめる"}
+      - alert: KpiScrapeFailed
+        expr: up{job="fluent-bit"} == 0
+        for: 5m
+        labels: {severity: warning}
+        annotations: {summary: "{{ $labels.node }} の Fluent Bit のログの数を 5 分取れない（アプリの数と警告が止まっている）"}
