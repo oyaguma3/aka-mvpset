@@ -105,7 +105,7 @@ Claude から声がかかったら、次を行う。
 
 ## 4. DNS のレコード
 
-テナントを置くとき（[deployment.md](deployment.md) §8.4）、Claude が aka-ossbss の画面に出る表（名前と向け先）を渡すので、Cloudflare の DNS（検証用のサブドメインの下）に登録する。段階 4 と同じ形（エッジの名前は A レコード、スロットの名前はそこへの CNAME。どれも DNS only の灰色の雲、TTL 60 秒）。
+テナントを置くとき（[deployment.md](deployment.md) §8.5）、Claude が aka-ossbss の画面に出る表（名前と向け先）を渡すので、Cloudflare の DNS（検証用のサブドメインの下）に登録する。段階 4 と同じ形（エッジの名前は A レコード、スロットの名前はそこへの CNAME。どれも DNS only の灰色の雲、TTL 60 秒）。
 
 ## 5. Slack の webhook
 

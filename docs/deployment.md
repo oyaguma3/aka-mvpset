@@ -32,7 +32,7 @@
 
 ## 2. ユーザーの作業
 
-[deployment-console.md](deployment-console.md) のとおり、ユーザーが KAGOYA のコントロールパネルで、ログイン用認証キー、セキュリティグループ、インスタンス 5 台を作り、公開のアドレスと鍵のファイルの置き場所を Claude に渡す。DNS のレコードはテナントを置くとき（§8.4）にユーザーが登録する。
+[deployment-console.md](deployment-console.md) のとおり、ユーザーが KAGOYA のコントロールパネルで、ログイン用認証キー、セキュリティグループ、インスタンス 5 台を作り、公開のアドレスと鍵のファイルの置き場所を Claude に渡す。DNS のレコードはテナントを置くとき（§8.5）にユーザーが登録する。
 
 - KAGOYA のセキュリティグループは宛先ポートを 1 つしか書けない（範囲は不可）。外向き・内向きを分ける設定もない（2026-11 にユーザーが確かめた）。そのため次のように扱う。
   - エッジのテナントのポート（TCP 20000〜21999）はセキュリティグループに書かない。エッジはテナントを置く前にセキュリティグループを外し、ホストの nftables だけで守る（確認事項 K1。§8.3）。
@@ -156,6 +156,7 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 - 手元で `versions.env` のコミットからビルドする（VPS の上ではビルドしない。概要 §17.3）。束は役ごと（`data`・`mgmt`・`edge`・`mon`）。`images.txt` に名前と ID を残す。
 - イメージの名前: aka-radius・aka-provisioner・radsec-ca・radsec-edge は `<名前>:<短いコミット>` なので、各 `.env` の `RADIUS_VERSION`・`PROVISIONER_VERSION`・`CA_VERSION`・`EDGE_VERSION` に `images.txt` の最後の行の値を入れる。aka-vecgen・aka-ossbss は compose に `image:` がないので、compose が付ける `aka-vecgen-aka-vecgen:latest`・`aka-ossbss-aka-ossbss:latest`（プロジェクト名はディレクトリの名前）に合わせてある。
 - 起動は `docker compose up -d --no-build`（ビルドしない）。
+- radsecproxy のイメージ（`radsec-edge/radsecproxy:1.11.4-pc1`）も毎回作り直す（Debian の更新、とくに OpenSSL を届けるため。段階 6-0 の U6-6）。作り直すと ID が変わるので、エッジに読み込むと全テナントが「古い」になり、§8.4 の手順で段階的に反映し直す。前のイメージはエッジで消さない（前の形に戻すのに使う。agent が `keep-` のタグを付けて残す）。
 - 公開のイメージ（valkey、postgres、fluent-bit、cloudflared、busybox、監視の部品）は VPS で `docker compose pull` する。取り込んだダイジェストは `docker image ls --digests` で記録する（段階 5 の締めで概要に書く）。
 
 ## 8. 各ノードの導入
@@ -180,11 +181,24 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
 ### 8.3 エッジ
 
 - **テナントを置く前に、ユーザーにエッジからセキュリティグループを外してもらう**（[deployment-console.md](deployment-console.md) §3.3。K1）。外すまでは AP がテナントのポートにつながらない。
-- radsec-edge の運用ガイド 10 章（管理モード）。`.env` は `env-hints.txt` のとおり（`EDGE_BIND_ADDR`・`EDGE_TLS_HOSTS` は `wg-svc` のアドレス、`EDGE_CRL_BASE_URL` は管理面の 8449、`EDGE_AGENT_PUBLISH_ADDR` は公開のアドレス、上流は aka-radius の `wg-svc` のアドレスの 1812・1813）。
+- radsec-edge の運用ガイド 10 章（管理モード）。版とイメージを上げるときは §8.4。`.env` は `env-hints.txt` のとおり（`EDGE_BIND_ADDR`・`EDGE_TLS_HOSTS` は `wg-svc` のアドレス、`EDGE_CRL_BASE_URL` は管理面の 8449、`EDGE_AGENT_PUBLISH_ADDR` は公開のアドレス、上流は aka-radius の `wg-svc` のアドレスの 1812・1813）。
 - **cloudflared は起動しない**（D10）。`docker compose up -d --no-build radsec-edge radsec-edge-agent fluent-bit`。
 - aka-provisioner の登録簿にエッジを足し、aka-ossbss の台帳に足す（aka-ossbss の運用ガイド 14.3）。
 
-### 8.4 テナントを置くとき
+### 8.4 エッジを上げる（段階的な反映し直し）
+
+エッジ（radsec-edge）の版とイメージは 1 台ずつ上げる。エッジは動いているテナントのコンテナを自動では作り直さないので、上げた後に aka-ossbss のエッジの詳細で古いテナントを選んで反映し直す（段階 6-0。radsec-edge の運用ガイド 10.9、aka-ossbss の運用ガイド 14.14）。
+
+1. 束を読み込み、`.env` の `EDGE_VERSION` を改めて `docker compose up -d --no-build radsec-edge radsec-edge-agent fluent-bit`（§6・§7）。テナントのコンテナはそのまま動き、AP の接続は切れない。
+2. 管理API の `/status` の `templates.staleTenants`（aka-ossbss のエッジの詳細の「古いテナント」）が出るまで待つ（整合のループは 1 分ごと）。
+3. aka-ossbss で、まず外形監視のテナントを「今の形で反映し直す」。外形監視（`aka_probe_success`）と警告に問題がないことを確かめる。
+4. 残りを少しずつ選んで反映し直す。1 件でも失敗したら止まる（Slack は `RADSEC_ROLLOUT_STOPPED` のログでは知らせないので、エッジの詳細とダッシュボードで見る）。
+5. そのエッジの古いテナントがなくなってから、次のエッジを上げる。
+
+- 前の形に戻すときも、aka-ossbss のエッジの詳細で選ぶ（「前の形に戻す」）。
+- radsec-edge のコンテナのひな形の版が上がる版（radsec-edge の設計概要 §24.14 の U6-5）は、前の版のテナントが 0 になってから上げる。
+
+### 8.5 テナントを置くとき
 
 DNS のレコード（エッジの名前の A レコードと、スロットの名前の CNAME。aka-ossbss の運用ガイド 14.5）はユーザーが登録する（[deployment-console.md](deployment-console.md) §4）。
 
@@ -242,7 +256,7 @@ Alertmanager は警告の名前とノードでまとめ（`group_by`）、最初
 |---|---|
 | データ面 | aka-radius の Valkey（`backup-valkey.sh`）と `.env`・`sources/`・`certs/admin/`・ピン、aka-vecgen の Valkey と `.env`・ピン |
 | 管理面 | aka-provisioner の Valkey と `.env`・`downstreams/`・ピン、aka-ossbss の DB（`backup-db.sh`）と `.env`・`certs/`、radsec-ca の DB（`backup`）と `.env`・ピン |
-| エッジ | `radsec-edge` を止めて `/var/lib/radsec-edge/data` を写し、すぐ起動する（テナントのコンテナと AP の接続は続く）。`.env`・ピン |
+| エッジ | `radsec-edge backup -out` で DB の写し（`data/backup.db`）を作り、`/var/lib/radsec-edge/data` を動いている DB のファイルを除いて写す（radsec-edge を止めない。段階 6-0 の U6-10。前は止めて写していたので、管理API が約 1 秒止まり、起動のときに全テナントに CRL の読み直しの SIGHUP が出ていた）。`.env`・ピン |
 | 監視 | `/opt/aka-monitor` の設定 |
 
 - **KEK と Tunnel のトークンは入れない**（別に保管する。§12）。一括投入の後は手でも取る（`sudo /usr/local/lib/aka/backup.sh`）。データ面を戻すと、最後のバックアップの後の一括投入は失われる（鍵は aka-vecgen にしかない）。

@@ -52,11 +52,14 @@ mgmt)
 	;;
 edge)
 	edge_data() {
-		# 止めている間も、テナントのコンテナと AP の接続は続く（管理API と整合のループだけが止まる）
-		(cd /opt/radsec-edge && docker compose stop radsec-edge) || return 1
-		tar -C /var/lib/radsec-edge -czf "$out/radsec-edge-data.tgz" data
+		# radsec-edge を止めずに取る（段階 6-0 の U6-10）。DB は backup -out の写し（SQLite の VACUUM INTO）を data/backup.db に作り、
+		# data を動いている DB のファイルを除いて写す（鍵のファイルは名前を変えて置く作りなので、そのまま写せる）。
+		# 戻すときは backup.db を radsec-edge.db に名前を変える（radsec-edge の運用ガイド 7 章）。
+		rm -f /var/lib/radsec-edge/data/backup.db
+		(cd /opt/radsec-edge && docker compose exec -T radsec-edge /radsec-edge backup -out /data/backup.db) || return 1
+		tar -C /var/lib/radsec-edge --exclude='data/radsec-edge.db*' -czf "$out/radsec-edge-data.tgz" data
 		local r=$?
-		(cd /opt/radsec-edge && docker compose start radsec-edge) || r=1
+		rm -f /var/lib/radsec-edge/data/backup.db
 		return $r
 	}
 	run radsec-edge-data edge_data
