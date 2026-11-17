@@ -164,6 +164,12 @@ aps) # AP 1,000 台を画面で登録する（まだないものだけ。40 件�
 	done
 	echo "AP の登録 $(($(date +%s) - t0)) 秒、登録済み $(sql "SELECT count(*) FROM aps a JOIN tenants t ON t.id = a.tenant_id WHERE t.name ~ '^sc[0-9]{4}$' AND a.deleted_at IS NULL")"
 	;;
+radsec-apply) # 19 テナントで「反映する」を求める（配置の後に AP を登録したので、AP の client ブロックをエッジに入れる。AP の追加では自動で求めない。OB1）
+	state > "$WORK/run/state.tsv"
+	python3 -I "$T/scale.py" apply "$WORK/run/state.tsv" "$WORK/req/apply.json"
+	BULK "$WORK/req/apply.json" > "$WORK/req/apply.out.json"
+	python3 -I "$T/scale.py" result "$WORK/req/apply.out.json"
+	;;
 certs) # サーバー CA と AP の証明書を画面から取り、一時の VPS に送って aps.json を作る
 	certs_tsv > "$WORK/run/certs.tsv"
 	sql "SELECT t.name, p.slot, p.edge_id, e.public_addr FROM placements p JOIN tenants t ON t.id = p.tenant_id JOIN edges e ON e.id = p.edge_id
@@ -211,7 +217,7 @@ ctl) # <パス> [POST]: 操作の口（例: ctl '/load?tps=50&label=p2' POST、c
 import json, sys
 d = json.load(sys.stdin)
 print({k: d[k] for k in ("label", "rate", "conns_up", "lost", "inflight", "sessions", "building")})
-for s in d["summary"][-6:]:
+for s in (d.get("summary") or [])[-6:]:
     print(" ", s["label"], s["seconds"], "Accept", s["counts"]["accept"], "失敗", s["failures"], "TPS", s["tps"], "p95", s["latency"]["p95"], "p99", s["latency"]["p99"], "acct", s["counts"]["acct_ok"], "/", s["counts"]["acct_sent"])'
 	;;
 stop) # [stop_sessions]: scaleload を止め（stop_sessions なら全セッションに Accounting-Stop を送ってから）、記録を手元に写す

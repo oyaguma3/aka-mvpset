@@ -13,7 +13,8 @@ export DEBIAN_FRONTEND=noninteractive
 echo "== apt（セキュリティの更新。新しい依存が要るもの（cloud-init など）は上げない）"
 apt-get update -q
 apt-get -y -q upgrade
-apt-get -y -q install --no-install-recommends nftables systemd-timesyncd openssl python3 curl
+# カーネルは新しいパッケージを入れる形なので upgrade では kept back になる。メタパッケージを入れて上げる（ほかのノードと同じ版に）
+apt-get -y -q install --no-install-recommends linux-image-amd64 nftables systemd-timesyncd openssl python3 curl
 timedatectl set-timezone Asia/Tokyo
 timedatectl set-ntp true || true
 

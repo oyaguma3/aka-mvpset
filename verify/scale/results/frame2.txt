@@ -1,0 +1,18 @@
+# 枠 2: 規模のデータを作る（2026-11-15 20:45〜21:20。KAGOYA CLOUD VPS の 5 台と一時の VPS）
+
+画面の要求はすべて Cloudflare 越しの HTTP（段階 5 の verify/stage5/ui/bulk.js と、一括投入は ui/upload.js）。
+
+- テナント 1,000（sc0001〜sc1000）: 50 件ずつ 20 束、108 秒、要求はすべて 200。
+- 一括投入 40 本（20:57〜21:04）: vecgen 側 20 本・radius 側 20 本（radius 側の 10 本はルール 1 件、10 本は 2 件）、どれも 1 万件で全部成功。
+  1 本 15〜21 秒（0.3〜0.4 分）で、① の基準（1 本 1 万件が 30 分以内）は PASS（frame2-jobs.txt）。台帳 200,001 件で両側がそろい、check_needed 0。
+- RadSec: 19 テナント（ポート 20001〜20019）で有効にし、primary は sc0001〜sc0010 が edge-01、sc0011〜sc0019 が edge-02（secondary は他方）。要求 57 件すべて 200。
+- AP 1,000 台（sc0001 に 100 台、ほかの 18 テナントに 50 台ずつ）: 鍵と CSR は一時の VPS で作り、画面で 40 件ずつ登録。221 秒（1 台約 0.22 秒）、すべて 200。
+- 「反映する」19 件: 配置を先に作ったので、後で足した AP は自動ではエッジに入らない（AP の追加では反映を求めない。aka-ossbss の OB1。製品は設計どおり）。段 radsec-apply を足した。
+- 証明書 1,019 枚（サーバー CA 19、AP 1,000）を 17 束で取り、失敗 0。38 配置が新しい版で反映済みになり、sc0001 の設定に client ブロック 101 個。
+- 小さな試し（AP 10 台、21:12〜21:13）: 接続 10 本、26 件すべて Accept（EAP-AKA 13・EAP-AKA' 13）、p95 8.2 ms、失敗 0。刻印と NAS-Identifier の書き換えが効いた。
+- 容量の基準（21:20）: aka-vecgen の Valkey の used_memory 120 MiB（キー 400,013）、aka-radius の Valkey 94 MiB（キー 202,772、maxmemory 1 GiB）、
+  aka-ossbss の DB 300 MB、データ面の使用量 1,088 MiB、edge-01 988 MiB・edge-02 1,172 MiB（テナントのコンテナは probe と 19）。
+- この間の監視: 外形監視は 2 スロットとも成功、警告 0、WARN は毎時の証明書ののぞきだけ。
+
+台本の誤りで直したもの: loadgen-setup.sh の apt-get upgrade ではカーネルが kept back になる（linux-image-amd64 を入れる形に）、
+段 radsec-apply を足した（上）、drive.sh の ctl の表示がまとめのないときに落ちる。

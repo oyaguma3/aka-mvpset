@@ -1,0 +1,39 @@
+# ⑥ 毎日の処理（20 万回線・1,000 テナント。aka-ossbss の scheduled_runs と各ノードのバックアップの記録）
+
+## 11-16（枠 2 の翌朝）
+
+| 処理 | 時刻 | 秒 | 結果 |
+|---|---|---|---|
+| usage-import | 03:00 | 0.0 | 書いた行 28 |
+| reconcile | 04:00 | 8.7 | 台帳 200,004・vecgen 側 200,001・radius 側 200,001、ずれ 0 |
+| retention | 04:30 | 0.0 | 消した行 0 |
+| radsec-renew | 05:00 | 0.0 | |
+| charging-close | 06:00 | 0.0 | 締める月なし |
+
+- バックアップ（2:30）: 5 台とも成功、2〜4 秒。大きさは data の aka-vecgen の Valkey 62.7 MB・aka-radius 47.0 MB、mgmt の aka-provisioner の Valkey 187.9 MB
+  （一括投入 40 万件の冪等の記録。24 時間で消える）・aka-ossbss の DB 12.9 MB・radsec-ca 7.7 MB、エッジ 0.37・0.44 MB。ops-pc の 5:30 の取得は 5 台とも ok（約 31 秒。前は約 6 秒）。
+- 夜の間（10 時間）: 外形監視は 2 スロットともずっと成功、警告 0。メモリー mgmt 1,570 MiB（aka-provisioner の Valkey 341 MB）、data 1,093、edge 1,004・1,209 MiB。
+- 見つけたこと（確認事項 B6-1）: Valkey のバックアップの台本（aka-vecgen・aka-radius・aka-provisioner の scripts/backup-valkey.sh）が `rdb_saves` が増えたら
+  書き終わったとみなしていたが、Valkey は BGSAVE を始めた時点で数を増やすので、新しいスナップショットを待たずに前の自動のスナップショット
+  （最大約 1 時間古い）を写していた。11-16 の写しは 02:20・02:29・11-15 21:15 のもの。データが小さいと保存が一瞬で終わるので CI では見えなかった。
+  3 つのリポジトリで直し（`rdb_bgsave_in_progress:0` まで待つ）、CI の通し確認に保存を遅らせて印の鍵を確かめる段を足した（直す前の台本で落ちる）。
+  VPS は台本だけを置き換えた。
+
+## 11-17（枠 3 の翌朝）
+
+| 処理 | 時刻 | 秒 | 結果 |
+|---|---|---|---|
+| usage-import | 03:00 | 3.3 | 書いた行 141,711（11-16 の利用。認証の成功 248,414 回、セッション 20,000） |
+| reconcile | 04:00 | 9.1 | 台帳 210,004・vecgen 側 210,001・radius 側 200,001、ずれ 0 |
+| retention | 04:30 | 0.0 | 消した行 0 |
+| radsec-renew | 05:00 | 0.0 | |
+| charging-close | 06:00 | 2.7 | 締める月なし（前に利用を読み直す） |
+
+- バックアップ（2:30）: 5 台とも成功。data 4 秒（aka-radius の Valkey 130.6 MB・aka-vecgen 65.8 MB、合計 188 MB）、mgmt 5 秒（aka-provisioner の Valkey 6.7 MB・
+  aka-ossbss の DB 13.2 MB・radsec-ca 4.1 MB、合計 23 MB）、エッジ 1 秒未満（0.13・0.20 MB。radsec-edge を止めない）、監視 1 秒未満。
+- B6-1 の確かめ: 写しの RDB の中の作成時刻（ctime）が aka-radius 02:30:23・aka-vecgen 02:30:24・aka-provisioner 02:30:22 で、バックアップの間に作った
+  スナップショットだった。aka-provisioner は写しの SHA-256 がコンテナの中の dump.rdb と一致した。data の 2 つはその後に自動の保存（08:27・08:32）が
+  走っていて dump.rdb が新しくなっていたので、作成時刻で判断した。
+- ops-pc の 5:30 の取得: 5 台とも ok（約 33 秒）。ops-pc に溜まった写しは data 383 MB・mgmt 245 MB（30 日分を残す）。
+- 夜の間: 外形監視の失敗 0、警告 0、WARN は毎時の証明書ののぞき（ADMIN_CLIENT_REJECTED 10・TLS_HANDSHAKE_ERR 18）。
+  使用量 data 1,248・mgmt 1,213・edge-01 1,092・edge-02 1,239・監視 928 MiB。aka-provisioner の Valkey は冪等の記録が消えて 6.7 MB に戻った。

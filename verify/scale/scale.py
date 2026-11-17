@@ -6,6 +6,7 @@
   scale.py jobs <状態.tsv> <済み.txt> <クライアントのID> <取得先> <種> <scaleload> <出力のディレクトリ>
                                                      … まだのジョブの指定（CSV つき）を 1 本ずつ <出力>/<名前>.b64 に書く
   scale.py radsec <状態.tsv> <出力.json>              … 19 テナントの RadSec の有効化と配置（primary・secondary）の要求
+  scale.py apply <状態.tsv> <出力.json>               … 19 テナントで「反映する」を求める要求（AP の登録の後）
   scale.py aps <AP の状態.tsv> <CSR のディレクトリ> <出力の接頭辞> <束の数>   … AP の登録の要求（束に分ける）
   scale.py certs <証明書.tsv> <出力の接頭辞> <束の数>  … サーバー CA と AP の証明書を取る要求
   scale.py save-certs <証明書.tsv> <結果.json>... <pki>  … 取った PEM を保存する
@@ -148,6 +149,13 @@ def radsec(state, out):
     print(f"{len(reqs)} 件")
 
 
+def apply(state, out):
+    """19 テナントで「反映する」を求める要求。AP を足しても反映は自動では求められない（OB1）ので、配置の後に AP を登録したら要る。"""
+    reqs = [{"m": "POST", "p": f"/tenants/{r[0]}/radsec/apply", "f": {}} for r in rows(state) if r[2] and int(r[1][2:]) <= SUBS]
+    dump(out, reqs)
+    print(f"{len(reqs)} 件")
+
+
 def aps(state, csrdir, prefix, per):
     reqs = []
     for name, tid, have in rows(state):
@@ -250,5 +258,5 @@ def timing(path):
 if __name__ == "__main__":
     c, a = sys.argv[1], sys.argv[2:]
     {"plan": lambda: plan(), "tenants": lambda: tenants(*a), "jobs": lambda: jobs(*a[:7], extra=len(a) > 7 and a[7] == "extra"),
-     "radsec": lambda: radsec(*a), "aps": lambda: aps(*a), "certs": lambda: certs(*a), "save-certs": lambda: save_certs(a),
+     "radsec": lambda: radsec(*a), "apply": lambda: apply(*a), "aps": lambda: aps(*a), "certs": lambda: certs(*a), "save-certs": lambda: save_certs(a),
      "apsjson": lambda: apsjson(*a), "result": lambda: result(a), "jobs-report": lambda: jobs_report(*a), "timing": lambda: timing(*a)}[c]()

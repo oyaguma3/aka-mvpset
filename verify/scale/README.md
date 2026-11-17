@@ -10,6 +10,8 @@
 | `ui/upload.js`・`ui/timing.js` | 画面の台本（一括投入の登録と確定、画面の応答の時間）。テナント・RadSec・AP の要求は段階 5 の `verify/stage5/ui/bulk.js` を使う |
 | `measure.py` | データ面で 10 秒ごとに Valkey とコンテナの様子を取る |
 | `loadgen-setup.sh` | 一時の VPS（aka-loadgen）を整える |
+| `charging-copy.sh` | 課金の締めを、本番から切り離した写しで測る（管理面のノードで動かす。今の月のデータを先月にずらして締める） |
+| `results/` | 段階 6-3 の結果（下の「結果」） |
 | `lab/` | 道具の手元の通し（aka-vecgen・aka-radius と、エッジの代わりの radsecproxy を手元の Docker に立てる） |
 
 ## scaleload
@@ -59,7 +61,7 @@ verify/scale/lab/lab.sh down
 | 2 | `login-start`・`login-pin <PIN>` | Access にログイン（PIN は 10 分で切れる。セッションは 24 時間） |
 | 2 | `tenants` | テナント sc0001〜sc1000（50 件ずつ。やり直すと残りだけ） |
 | 2 | `jobs`、`jobs-wait` | 一括投入 40 本を 1 本ずつ登録して確定し、終わるまで待ってジョブごとの時間（① 1 万件が 30 分以内） |
-| 2 | `radsec`、`lg-keys`、`aps`、`certs`、`applied` | 19 テナントの RadSec と配置、AP 1,000 台の鍵と CSR（一時の VPS）、AP の登録、証明書と aps.json、反映を待つ |
+| 2 | `radsec`、`lg-keys`、`aps`、`radsec-apply`、`certs`、`applied` | 19 テナントの RadSec と配置、AP 1,000 台の鍵と CSR（一時の VPS）、AP の登録、「反映する」（配置の後に足した AP は自動では反映されない。OB1）、証明書と aps.json、反映を待つ |
 | 2 | `lg-push`、`serve 10`、`ctl …`、`stop` | 道具を送り、AP 10 台で小さく試す（L6-7。エッジ固有のこと） |
 | 2〜3 | `scheduled` | その夜の毎日の処理（バックアップ、利用の取り込み、突き合わせ）の時間（⑥） |
 | 3 | （ユーザー） | 一時の VPS のセキュリティグループを外す |
@@ -69,7 +71,40 @@ verify/scale/lab/lab.sh down
 | 3 | `ctl '/load?tps=100&label=p4-100' POST` … 150・200 | ④ 5 分ずつ |
 | 3 | `stop stop_sessions`、`measure-stop`、`prom <始め> <終わり>` | 止めて記録を写す（Prometheus から 30 秒ごとの数） |
 | 3 | `lg-clean`、（ユーザー） | 一時の VPS の鍵・種を消し、ユーザーが VPS とセキュリティグループを消す |
+| 翌朝 | `scheduled`、`charging-copy.sh` | その夜の毎日の処理（⑥）と、課金の締めを写しで測る（下の手順） |
 
 - 測定の間だけ、aka-vecgen の Valkey の遅れの記録（`latency-monitor-threshold`）を 5 ms にする（`measure-start`。`CONFIG SET` なので再起動で消え、`measure-stop` が 0 に戻す）。
 - 規模のデータ（テナント・加入者・RadSec・AP）は顧客を収容する前の作り直しまで残す（S6-6）。
 - 結果は `$WORK` に残し、アドレス・ドメイン・メールを伏せてから `results/` に写す。
+
+課金の締めを写しで測る（`charging-copy.sh`。3:00 の取り込みの後に。試験用の PGP 鍵は手元で暗号化の副鍵つきで作る）:
+
+```bash
+S="ssh -F ~/aka-deploy/ssh_config aka-mgmt"
+$S 'cat > /var/tmp/aka-chg.sh && chmod 700 /var/tmp/aka-chg.sh' < verify/scale/charging-copy.sh
+$S "/var/tmp/aka-chg.sh setup '<システム管理者のメール>'"   # 本番の DB の写しを一時の postgres に戻す
+$S '/var/tmp/aka-chg.sh shift; /var/tmp/aka-chg.sh start'
+$S '/var/tmp/aka-chg.sh key' < <公開鍵.asc>
+$S '/var/tmp/aka-chg.sh stats-start; /var/tmp/aka-chg.sh close; /var/tmp/aka-chg.sh wait; /var/tmp/aka-chg.sh stats-stop; /var/tmp/aka-chg.sh report'
+$S '/var/tmp/aka-chg.sh get 1' > charging.zip.pgp && GNUPGHOME=<鍵束> python3 -I verify/charging/verify-file.py charging.zip.pgp
+$S '/var/tmp/aka-chg.sh clean; rm /var/tmp/aka-chg.sh'
+```
+
+## 結果（段階 6-3。2026-11-15〜17、KAGOYA CLOUD VPS の 5 台と一時の VPS）
+
+すべての判定を満たした。詳しくは `results/`（`frame2.txt`・`frame2-jobs.txt`、`frame3.md` と生の記録 `frame3-*.json(l)`、`daily.txt`、`restore.txt`、`charging-close.txt`）。
+
+| # | 項目 | 結果 |
+|---|---|---|
+| ① | 一括投入（1 本 1 万件が 30 分以内） | 40 本すべて成功、1 本 15〜21 秒。**PASS** |
+| ② | 認証 50 TPS を 30 分（AP 1,000 本、EAP-AKA と AKA' を半々、セッション 2 万の Interim つき） | 90,053 件すべて Accept、p95 8.6 ms・p99 11.0 ms、エッジの使用量 1.3 GiB 以下、警告 0。**PASS** |
+| ③ | ② の間に 1 万件の一括投入 | 15 秒で全件成功。重なった 10 秒だけ最大 234 ms。**PASS** |
+| ④ | 100・150・200 TPS を 5 分ずつ | すべて Accept、p99 9.1・9.3・8.5 ms。200 TPS でデータ面の CPU は 4 コアの約 22% |
+| ⑤ | 10 TPS を流しながら画面（20 回ずつ、p95 が 3 秒以内） | p95 82〜155 ms（一覧の 1 回目だけ 5.2 秒）。セッションの一覧（2 万件）は p95 82 ms。**PASS** |
+| ⑥ | 毎日の処理 | バックアップ 5 台で最長 5 秒、利用の取り込み 3.3 秒（14 万行）、突き合わせ 9.1 秒（21 万件、ずれ 0）。課金の締めは写しで 40.6 秒（回線 21 万、テナント 1,150、ファイル 4.3 MB） |
+| ⑦ | データ面をバックアップから戻す | Valkey のボリュームを消してから戻すまで 46 秒、外形監視は失敗せず、突き合わせのずれ 0 |
+
+- 見つけて直したこと: Valkey のバックアップが前のスナップショットを写していた（確認事項 B6-1。aka-vecgen・aka-radius・aka-provisioner の `scripts/backup-valkey.sh`）。直した後、11-17 の 2:30 の写しがその時のスナップショットであることを確かめた。
+- 台本の直し: 一時の VPS のカーネルが `apt-get upgrade` で上がらない、段 `radsec-apply`（配置の後に足した AP は自動では反映されない）、`ctl` の表示。
+- 遅延の外れ（約 235 ms が 318 窓のうち 7 窓）は TCP の再送待ち（エッジのコンテナの中の `TCPTimeouts`）で、一時の VPS とエッジの間でときどきパケットが落ちた見込み。
+- 規模のデータ（テナント 1,000、加入者 21 万、RadSec 19 テナント・AP 1,000・配置 38）は顧客を収容する前の作り直しまで残す。試験用の PGP 公開鍵を本番に登録したので、12-01 6:00 の本番の締めのファイルを手元で開いて確かめる。

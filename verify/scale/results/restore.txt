@@ -1,0 +1,14 @@
+# ⑦ データ面を規模のデータでバックアップから戻す（2026-11-16 21:47〜21:55）
+
+KEK には触らず、Valkey のボリュームだけを消して戻す形にした（段階 5 の drill-data は平文の KEK の写しを使うが、今は gpg で暗号化してあるため）。
+
+- 手のバックアップ 21:47:27（aka-vecgen の Valkey 65.8 MB、aka-radius 130.6 MB）→ ops-pc の取得（SHA-256 が一致）→ ops-pc の写しを data に送る
+  （ご自宅の回線を通るので 59 秒と 109 秒）。
+- 21:51:38.7 に aka-radius・aka-vecgen を `docker compose down -v`（Valkey のボリューム 2 つが消えた）→ `scripts/restore-valkey.sh` →
+  21:52:24.5 に 7 コンテナが healthy。**消してから戻すまで 46 秒**（aka-vecgen 20 秒・キー 420,012、aka-radius 22 秒・キー 725,305）。
+- 外形監視は失敗しなかった（5 分ごとの最小 1）。probe の IMSI は SQN が写しの時点に戻るので EAP_RESYNC_CHALLENGE が 1 回出て、その後成功。
+- ContainerUnhealthy（aka-vecgen-valkey-1）と KpiScrapeFailed が pending になり、発報せずに消えた。
+- 戻した後に AP 10 台・毎秒 5 件で 193 件すべて Accept（p99 16 ms）。手で動かした突き合わせは台帳 210,004・vecgen 210,001・radius 200,001 でずれ 0。
+- 一時のファイル（写し、台本）は消した。
+
+RTO の裏づけ: 20 万回線のデータ面は、写しがノードにあれば 1 分以内に戻る。写しを取ってくる時間（ここではご自宅の回線で約 3 分）が別にかかる。
