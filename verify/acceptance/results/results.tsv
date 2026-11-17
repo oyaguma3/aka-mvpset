@@ -1,0 +1,40 @@
+14:58:34	AT-01	PASS	AP が primary（edge-01）に RadSec でつながっている（送り元       2 <拠点の公開のアドレス> ）
+15:16:30	AT-02	PASS	EAP-AKA で認証が通る（rc=0）
+15:16:33	AT-04	INFO	再同期は起きなかった（SIM と aka-vecgen の SQN がそろっていた）
+15:16:43	AT-03	PASS	EAP-AKA' で認証が通る（rc=0）
+15:19:13	AT-02p	PASS	Pixel で EAP-AKA が通り、インターネットに出られる（15:17:32 に Accept。ユーザーが導通を確かめた）
+15:19:13	AT-03p	PASS	Pixel で EAP-AKA' が通り、インターネットに出られる（15:18:01 に Accept）
+15:19:13	AT-04	PASS	Pixel の SIM で再同期（AUTS）が 1 回起きて、その後に通った（15:17:32）
+15:19:13	AT-06a	INFO	Accounting の Start・Interim・Stop が IMSI とテナント 11151 つきで届く（Pixel。Start の約 3 秒後に最初の Interim）
+15:19:13	AT-05a	INFO	U7 Lite が送る NAS-Identifier は 2 台の端末とも「radsec」（グループなのでエッジはそのまま通す）
+15:21:15	AT-05a	INFO	AP が送る NAS-Identifier は「radsec」（グループなのでエッジはそのまま通す）
+15:21:26	AT-05	PASS	ルールの NAS-Identifier を実際の値にしても通る（rc=0）
+15:21:48	AT-05b	PASS	ルールの NAS-Identifier が合わないと拒否される（rc=3）
+15:22:12	AT-06b	INFO	セッションの一覧に Pixel のセッション（15:18:01 開始、at1、NAS radsec、送り元 edge-01、端末の MAC と IP アドレス）が出る。時間と通信量は Interim が来るまで 0。Onyx の接続は Stop で消えている
+15:22:27	AT-07a	PASS	radius 側を止めると拒否される（rc=3）
+15:22:40	AT-07b	PASS	radius 側を戻すと通る（rc=0）
+15:23:06	AT-08a	PASS	所属を別のテナントに付け替えると拒否される（刻印のテナントと合わない）（rc=3）
+15:23:20	AT-08b	PASS	所属を戻すと通る（rc=0）
+15:24:01	AT-09a	PASS	範囲に手元の回線の公開のアドレスを入れても通る（1 回目）
+15:26:03	AT-09b	PASS	範囲の外の送信元からはつながらない（rc=4）
+15:26:04	AT-09c	PASS	エッジが範囲の外の接続を TLS で受けない（ログ）
+15:26:34	AT-09d	PASS	範囲を空に戻すとまた通る（1 回目）
+15:26:52	AT-07c	INFO	AT-07a の拒否は aka-radius の AUTH_SUBSCRIBER_INACTIVE（ベクターを取る前に断る）
+15:26:52	AT-08c	INFO	AT-08a の拒否は AUTH_POLICY_DENIED（一致するルールがない。ルールのテナントが付け替え先になり、刻印のテナント at1 と合わない）
+15:26:52	AT-05c	INFO	拒否のログの SSID は U7-Lite-AKA（Called-Station-Id の「:」の後ろを正しく読めている）
+15:27:00	AT-10a	PASS	primary を止めると secondary に切り替わって通る（1 回目、6 秒）
+15:27:01	AT-10b	PASS	AP が secondary（edge-02）につながっている（      1 <拠点の公開のアドレス> ）
+15:37:19	AT-10c	INFO	止めるのをやめた後、AP が primary に戻ったか: 戻っていない（615 秒）
+15:37:36	AT-05d	INFO	U7 Lite の Called-Station-Id は「AP の MAC（大文字・ハイフン区切り）:SSID」、NAS-Port-Type は Wireless - IEEE 802.11（edge-02 で RADIUS を記録して確かめた）
+15:37:36	AT-10d	INFO	UniFi は予備のサーバーで動いている間は primary に戻らない（止めたのは 10 秒、その後 10 分見ても edge-02 のまま）
+15:40:14	AT-05a	INFO	AP が送る NAS-Identifier は「74:f9:2c:xx:xx:xx」（グループなのでエッジはそのまま通す）
+15:40:24	AT-05	PASS	ルールの NAS-Identifier を実際の値にしても通る（rc=0）
+15:40:36	AT-05b	PASS	ルールの NAS-Identifier が合わないと拒否される（rc=3）
+15:40:47	AT-05e	INFO	UniFi の NAS-Identifier を「AP MAC」にすると「変更を適用」だけで（AP の再起動なしで）効いた。値は AP の MAC（小文字・コロン区切り）で、Called-Station-Id の MAC（大文字・ハイフン区切り、BSSID なので末尾が違う）とは形も値も違う。ルールにはこの形で書く
+15:50:41	AT-11a	PASS	UniFi に新しい証明書を入れ替えた後も通る（rc=0）
+15:53:13	AT-11b	PASS	古い証明書を失効させ、接続を張り直させても通る（新しい証明書を使っている。1 回目）
+06:34:56	AT-06	PASS	11-18 03:00 の取り込みで、11-17 の利用の集計に 2 枚とも入った（テナント 11151。Pixel は 9 セッション・24,039 秒・入力 80 MB・出力 5.0 GB、Onyx は 20 セッション・28,495 秒）
+06:34:56	AT-12	FAIL	一晩（15:56〜6:30）で認証し直しの拒否は 0（Pixel 11 回・Onyx 6 回すべて成功）だが、つながらない時間があった。エッジの radsecproxy が要求のない AP の接続を 15 分で閉じ（1.11.4 のソースに固定の 900 秒）、UniFi の張り直しが遅いと認証し直しが通らない（Pixel は 16〜59 分遅れた回が 6 回、6:21 からはまだ張り直していない）
+06:34:56	AT-12b	INFO	Onyx は Wi-Fi の切断（reason 7）を 21 回。PMKSA のキャッシュでつなぎ直すと Access-Accept がないので aka-radius にセッションがなく、Accounting が ACCT_SESSION_NOT_FOUND（WARN）になる（163 回。利用は集計される）
+06:34:56	AT-12c	INFO	夜の定期の処理（取り込み・突き合わせ・削除・証明書の更新・締め）はすべて ok、外形監視 2 スロットとも 1、発報した警告 0
+07:12:29	AT-12d	INFO	AP は 06:35:34 に edge-01 へ認証の接続を張り直した（Pixel が切れた 06:21 から 14 分）
