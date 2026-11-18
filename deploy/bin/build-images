@@ -40,7 +40,10 @@ archive radsec-ca "$CA_REF"
 build radsec-ca "$CA_REF" "radsec-ca:$(s "$CA_REF")"
 archive radsec-edge "$EDGE_REF"
 build radsec-edge "$EDGE_REF" "radsec-edge:$(s "$EDGE_REF")"
-build radsec-edge "$EDGE_REF" radsec-edge/radsecproxy:1.11.4-pc1 images/radsecproxy
+# radsecproxy のイメージのタグは、エッジのソースの compose.yaml（radsecproxy-image の image。エッジの agent が使うタグと同じ）から読む
+RSP_IMAGE=$(sed -n 's|^[[:space:]]*image:[[:space:]]*\(radsec-edge/radsecproxy:[^[:space:]]*\)[[:space:]]*$|\1|p' "$WORK/build/radsec-edge/compose.yaml" | head -n 1)
+[ -n "$RSP_IMAGE" ] || { echo "radsec-edge の compose.yaml から radsecproxy のイメージのタグを読めない" >&2; exit 1; }
+build radsec-edge "$EDGE_REF" "$RSP_IMAGE" images/radsecproxy
 
 MV=$(git -C "$ROOT" rev-parse --short=7 HEAD)
 echo "== aka-probe（aka-mvpset $MV）"
@@ -56,7 +59,7 @@ git -C "$SRC/eapaka_test" archive --format=tar "$EAPAKA_TEST_REF" | tar -xf - -C
 # 公開のイメージは VPS で取り込む（docs/deployment.md §7）。ここではビルドしたものだけを束ねる
 data=(aka-vecgen-aka-vecgen:latest "aka-radius:$(s "$RADIUS_REF")")
 mgmt=("aka-provisioner:$(s "$PROVISIONER_REF")" aka-ossbss-aka-ossbss:latest "radsec-ca:$(s "$CA_REF")")
-edge=("radsec-edge:$(s "$EDGE_REF")" radsec-edge/radsecproxy:1.11.4-pc1)
+edge=("radsec-edge:$(s "$EDGE_REF")" "$RSP_IMAGE")
 mon=("aka-probe:$MV")
 for r in data mgmt edge mon; do
 	declare -n list=$r

@@ -165,7 +165,7 @@ ssh aka-data 'gunzip | docker load' < "$WORK/images/data.tar.gz"
   中身は手元のビルドと同じ形（`images/`・`src/`・`bin/`）。radsecproxy のイメージは作るたびに ID が変わるので、CI の束をエッジに読み込むと全テナントが「古い」になる（§8.4）。artifact は GitHub にログインした人なら取れる（公開のソースから作った秘密を含まないもの。レジストリには置かない）。
 - イメージの名前: aka-radius・aka-provisioner・radsec-ca・radsec-edge は `<名前>:<短いコミット>` なので、各 `.env` の `RADIUS_VERSION`・`PROVISIONER_VERSION`・`CA_VERSION`・`EDGE_VERSION` に `images.txt` の最後の行の値を入れる。aka-vecgen・aka-ossbss は compose に `image:` がないので、compose が付ける `aka-vecgen-aka-vecgen:latest`・`aka-ossbss-aka-ossbss:latest`（プロジェクト名はディレクトリの名前）に合わせてある。
 - 起動は `docker compose up -d --no-build`（ビルドしない）。
-- radsecproxy のイメージ（`radsec-edge/radsecproxy:1.11.4-pc1`）も毎回作り直す（Debian の更新、とくに OpenSSL を届けるため。段階 6-0 の U6-6）。作り直すと ID が変わるので、エッジに読み込むと全テナントが「古い」になり、§8.4 の手順で段階的に反映し直す。前のイメージはエッジで消さない（前の形に戻すのに使う。agent が `keep-` のタグを付けて残す）。
+- radsecproxy のイメージ（タグはエッジのソースの `compose.yaml` から読む。段階 6-5 から `radsec-edge/radsecproxy:1.11.5-pc2`、その前は `1.11.4-pc1`）も毎回作り直す（Debian の更新、とくに OpenSSL を届けるため。段階 6-0 の U6-6）。作り直すと ID が変わるので、エッジに読み込むと全テナントが「古い」になり、§8.4 の手順で段階的に反映し直す。前のイメージはエッジで消さない（前の形に戻すのに使う。agent が `keep-` のタグを付けて残す）。
 - 公開のイメージ（valkey、postgres、fluent-bit、cloudflared、busybox、監視の部品）は VPS で `docker compose pull` する。取り込んだダイジェストは `docker image ls --digests` で記録する（段階 5 の締めで概要に書く）。
 
 ## 8. 各ノードの導入
