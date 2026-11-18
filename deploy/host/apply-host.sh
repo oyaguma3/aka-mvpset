@@ -13,7 +13,7 @@ set -euo pipefail
 
 D=$(cd "$(dirname "$0")/.." && pwd) # 送った束（root/ と deploy の部品）
 ROOT=$D/root
-DOCKER_VERSION=5:29.9.3-1~debian.13~trixie
+DOCKER_VERSION=5:29.10.0-1~debian.13~trixie
 CONTAINERD_VERSION=2.4.2-4~debian.13~trixie
 NOSD=${AKA_NO_SYSTEMD:-0}
 [ "$(id -u)" = 0 ] || { echo "sudo で動かす" >&2; exit 2; }
@@ -96,7 +96,8 @@ step_docker() {
 		usermod -aG docker aka
 	fi
 	# 版を変えたら上げる。dockerd と containerd が再起動するが、コンテナは live-restore で動き続ける。
-	# パッケージの更新は docker.socket も作り直すので、エッジの agent は約 1 分で作り直されてつなぎ直す（段階 5 の T5-10）
+	# パッケージの更新は docker.socket も作り直すので、エッジの agent は約 1 分で作り直されてつなぎ直す（段階 5 の T5-10）。
+	# compose の plugin（版を決めていない）も一緒に今の版に上げる（CLI だけで、dockerd は再起動しない。段階 6-5 の C6-5）
 	cur_d=$(dpkg-query -W -f='${Version}' docker-ce)
 	cur_c=$(dpkg-query -W -f='${Version}' containerd.io)
 	if [ "$cur_d" != "$DOCKER_VERSION" ] || [ "$cur_c" != "$CONTAINERD_VERSION" ]; then
@@ -104,7 +105,7 @@ step_docker() {
 		apt-get update -q
 		apt-mark unhold docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io > /dev/null
 		DEBIAN_FRONTEND=noninteractive apt-get install -y -q -o Dpkg::Options::=--force-confold "docker-ce=$DOCKER_VERSION" \
-			"docker-ce-cli=$DOCKER_VERSION" "docker-ce-rootless-extras=$DOCKER_VERSION" "containerd.io=$CONTAINERD_VERSION"
+			"docker-ce-cli=$DOCKER_VERSION" "docker-ce-rootless-extras=$DOCKER_VERSION" "containerd.io=$CONTAINERD_VERSION" docker-compose-plugin
 		apt-mark hold docker-ce docker-ce-cli docker-ce-rootless-extras containerd.io
 	fi
 	if ! cmp -s "$D/host/daemon.json" /etc/docker/daemon.json; then
