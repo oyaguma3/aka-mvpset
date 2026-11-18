@@ -802,6 +802,27 @@ VPS（KAGOYA CLOUD VPS）の 5 台に全ノードを配置し、WireGuard・nfta
 - 6-5 で直すこと: radsec-edge の radsecproxy を 1.11.5 にし、パッチにクライアントの `IdleTimeout`（開発版と同じ名前）を取り込んで、テナントの設定で AP の接続を閉じない（A6-13。段階的な反映し直しで届ける）。aka-ossbss の RadSec の画面と接続の案内にスロットごとの IPv4 アドレスを出す（A6-14）。AP・グループの証明書の発行・失効のときに反映を自動で求める（A6-15）。aka-radius で、セッションのない Accounting に Class の UUID と IMSI があればセッションを作り直す（A6-17。キャッシュした鍵で EAP なしにつなぎ直す端末で `ACCT_SESSION_NOT_FOUND` が一晩 163 回出た）。AP の接続の手順書に、名前を書けない AP と、差し替えの後の AP の再起動の注記（A6-14・A6-16）。直した後に、残した予行の環境で AT-12 をやり直す（A6-18）。
 - 予行の環境（テナント at1・at2、SIM の登録、UniFi の設定、CNAME 2 件）は、AT-12 のやり直しまで残す。
 
+#### 6-5a 予行で分かったことの直し、VPS への入れ替え、AT-12 のやり直し（2026-11-18〜19）
+
+確認事項 C6-1〜C6-11 は推奨どおりで合意（6-5 を 6-5a と 6-5b に分け、タグは AT-12 が通ってから。2026-11-18）。AT-12 のやり直しの後の確認事項 A6-20・A6-21 も推奨どおりで合意（2026-11-19）。
+
+| リポジトリ | 内容 | コミット |
+|---|---|---|
+| [radsec-edge](https://github.com/oyaguma3/radsec-edge) | radsecproxy 1.11.5 とパッチ `client-idletimeout.patch`（client ブロックの `IdleTimeout`。イメージ `1.11.5-pc2`）、ひな形の版 2（テナントの client ブロックに `IdleTimeout 0`。版 1 の書き方は今のまま）、起動のときの整合を agent に届くまで 5 秒ごと最大 2 分やり直す（R6-4）、設計概要 §24.15・運用ガイド | main `99cd93e`・`28971a0`・`85b798b` |
+| [aka-ossbss](https://github.com/oyaguma3/aka-ossbss) | AP・グループの証明書の更新・失効で反映を自動で求める（A6-15）、テナントの RadSec の画面と接続の案内にスロットごとの名前と IPv4 アドレス（A6-14）、AP の接続の手順書・運用ガイド（A6-14・A6-16）、CI の固定 | main `92b64c4`・`4562d53`・`8632408`・`e49f0fd` |
+| [aka-radius](https://github.com/oyaguma3/aka-radius) | Accounting の Start・Interim でセッションがなく Class の UUID と IMSI があれば、セッションを作り直して INFO `ACCT_SESSION_RESUMED`（A6-17）、D-文書、運用ガイドの HUP の注記 | develop `78fba68`・main `20c4575` |
+| [aka-vecgen](https://github.com/oyaguma3/aka-vecgen)・[aka-provisioner](https://github.com/oyaguma3/aka-provisioner)・[radsec-ca](https://github.com/oyaguma3/radsec-ca) | 運用ガイドの HUP の注記（C6-6）。aka-provisioner は CI の固定と、契約の試験が radsecproxy のタグをエッジのソースから読む形 | aka-vecgen `53e7b3b`、aka-provisioner `fe234cf`・`930387a`、radsec-ca `d7f9a51` |
+| 本リポジトリ | `versions.env`、`deploy/bin/build-images` が radsecproxy のタグをエッジのソースから読む形、Docker 29.10.0（`apply-host.sh`・手順書 §5）、受入試験の手順書の AT-12 の見方と 11.1、台本の直しとやり直しの結果（`verify/acceptance/`） | main `ffd6411`・`9de3369`、この節のコミット |
+
+- Docker 29.10.0（C6-5。11-18 22:14〜22:27）: 5 台を 1 台ずつ（1 台 13〜17 秒、compose 5.8.0、containerd.io は 2.4.2-4 のまま）。エッジは agent だけが作り直されて約 81 秒で戻り、ほかのコンテナは作り直しも再起動もなし。外形監視はずっと成功、警告 0。
+- VPS への入れ替え（C6-8。11-18 22:39〜23:17）: main `9de3369` から CI で 1 回ビルドした束（run `44315880892`。`SHA256SUMS` の 12 個がすべて一致。手元ではビルドしていない）を、データ面 → 管理面 → edge-01 → edge-02 の順に 1 台ずつ入れた（22:47〜22:55。各台 15〜21 秒で healthy、下流 5/5、公開のホスト名 302、外形監視はずっと成功）。イメージの ID は aka-vecgen `5cc794ee0383`、aka-radius `b1bee808c5eb`、aka-provisioner `3fba7b5a1797`、aka-ossbss `61ed8c8398dd`、radsec-ca `ae199d6a29f5`、radsec-edge `c645e1ce51fe`、radsecproxy `66725bd32f2e`。エッジは動いているテナントのコンテナ（各 21）を作り直さず、全テナントが古いと出た（設定の書き方が古いテナントは 0）。
+- 段階的な反映し直し: aka-ossbss のエッジの詳細から、各エッジで probe → at1 → sc0001（AP 100 台）→ 3 件 → 5 件 → 10 件の順に 12 回・42 件。すべて成功、1 件約 10 秒（2〜10 秒）。後は両エッジとも 21/21 が版 2・`1.11.5-pc2` で、どのテナントも client ブロックの数と `IdleTimeout 0` の数が一致し、前の形（版 1・`1.11.4-pc1`）に戻せる。外形監視の AP の役は作り直しの約 2 秒後につなぎ直し、外形監視は失敗せず、警告 0。
+- 画面: テナントの RadSec の画面と接続の案内に、スロットごとの名前と IPv4 アドレスの表と、名前を書けない AP の注記が出ることを確かめた（A6-14）。
+- AT-12 のやり直し（11-18 23:29〜11-19 06:57。AT-01〜AT-03 も PASS）: **PASS**。AP の edge-01 への 2 本の接続（認証と Accounting）は約 7 時間 35 分張ったままで、エッジが閉じる行は出なかった。AP から届いた認証は 17 回すべてすぐ通り（拒否・再同期 0）、Session-Timeout の認証し直しは 5〜22 秒の遅れで通った。Accounting はキャッシュの鍵でのつなぎ直しでセッションを作り直した（`ACCT_SESSION_RESUMED` 7 回、`ACCT_SESSION_NOT_FOUND` 0 回。前の夜は 163 回）。
+- A6-20（判定の読み替え）: 遅れとつながらない時間が残った（Android の端末が Session-Timeout で切られた後 16 分つなぎ直さなかったのが 1 回、USB のモデムの端末が関連付けの直後に AP に切られ続けて 2 分半〜12 分つながらなかったのが 4 回）が、どれもその間 AP から RADIUS の要求がなく、エッジと中央には届いていない。判定はエッジと中央の側で行い、無線の側のつながらない時間は記録して顧客に伝える（C6-9 の「つながらない時間がない」の読み替え）。手順書の AT-12 の見方を「その間に AP から要求が来ていたかで切り分ける」に改めた（A6-21）。
+- そのほか分かったこと（手順書 11.1。製品は直さない）: UniFi では、端末がキャッシュの鍵でつなぎ直した後は、Session-Timeout を過ぎても認証し直しが来ないことがあった（64 分）。加入者を止めても、その端末は次に EAP で認証するまでつながり続ける。Session-Timeout で切ったときの Accounting-Stop の通信量が 0 で届くことがあり（2 回）、aka-radius は WARN `USAGE_COUNTER_RESET` を出して増えた分を 0 と数える（最後の途中経過から Stop までの最大 10 分ぶんは数えられない）。
+- 次: 予行の環境の片付け（`verify/acceptance/drive.sh clean`。UniFi の設定と CNAME 2 件は人が消す）→ 6-5b（C6-10）。
+
 ## 19. 未決・計測待ち
 
 | # | 事項 | 決め方 |

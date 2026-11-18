@@ -1,7 +1,7 @@
 # 受入試験の予行（段階 6-4。UniFi U7 Lite と実際の SIM）
 
 段階 6 の手順 6-4 で、受入試験の手順書（[docs/acceptance-test.md](../../docs/acceptance-test.md)）の予行を、実際の AP（Ubiquiti UniFi U7 Lite）・実際の検証用 SIM・2 つの端末で行った台本と結果です。
-要件と構成の概要 §18.13 の S6-10 と、確認事項 A6-1〜A6-19 によります。
+要件と構成の概要 §18.13 の S6-10 と、確認事項 A6-1〜A6-21 によります。1 回目の予行（2026-11-17〜18）で FAIL だった AT-12 は、エッジの直し（段階 6-5a）の後に同じ環境で一晩やり直しました（2026-11-18〜19、下の「AT-12 のやり直し」）。
 
 ## 作り
 
@@ -32,6 +32,7 @@ UniFi U7 Lite（UniFi OS Server で設定）
 | `ui/*.js` | 画面の台本（playwright-cli の `run-code` に渡す）。段階 5 の `verify/stage5/ui/`（状態の変更、送信元の範囲）も使う |
 | `results/results.tsv` | 項目ごとの結果（拠点のアドレス、IMSI、AP の MAC アドレスは伏せた） |
 | `results/night.txt` | AT-12 の一晩の記録（認証し直しの時刻、エッジの AP の接続、端末の Wi-Fi の接続） |
+| `results/night-redo.txt` | AT-12 のやり直しの一晩の記録（同じ形） |
 
 公開しないもの（手元の `$WORK/accept/` だけに置く）: グループの鍵と CSR、UniFi に入れた PEM、SIM の IMSI、端末と RADIUS の生の記録。
 
@@ -90,6 +91,23 @@ verify/acceptance/drive.sh <段>
 
 そのほか（手順書に書いた）: UniFi の NAS-Identifier は誤ってカスタムの固定の値になっていたので「AP MAC」にした（「変更を適用」だけで効く）。Called-Station-Id は電波の MAC アドレス（BSSID）と SSID。AT-09 の送信元の範囲の変更は、反映のときに AP の接続がいったん切れる。
 
+## AT-12 のやり直し（2026-11-18 23:29〜11-19 06:57。段階 6-5a）
+
+エッジを radsec-edge 85b798b（radsecproxy 1.11.5-pc2、ひな形の版 2。テナントの client ブロックに `IdleTimeout 0`）に上げ、at1 を今の形に反映し直した後、1 回目と同じ環境（at1・グループ `unifi`・SIM 2 枚・UniFi の設定）で行った。始める前に AT-01〜AT-03 を軽く通した（PASS）。
+
+| 項目 | 結果 | 様子 |
+|---|---|---|
+| AT-12 一晩の維持 | **PASS** | AP の edge-01 への 2 本の接続（認証と Accounting）は約 7 時間 35 分張ったままで、`(no requests), closing connection` は出なかった。AP から届いた認証は 17 回すべてすぐ通り（拒否・再同期 0）、Session-Timeout の認証し直しは 5〜22 秒の遅れで通った。遅れとつながらない時間（Pixel 16 分 1 回、端末 2 は 2 分半〜12 分 4 回）は、どれもその間 AP から RADIUS の要求がなく、AP と端末の無線の側で起きた |
+
+Accounting は、キャッシュの鍵でのつなぎ直しで aka-radius がセッションを作り直した（`ACCT_SESSION_RESUMED` 7 回、`ACCT_SESSION_NOT_FOUND` 0 回。A6-17 の直しが効いた）。夜の定期の処理・バックアップ・ops-pc の取得・外形監視は正常、警告 0。一晩の記録は `results/night-redo.txt`。
+
+| # | 見つけたこと | 決めたこと |
+|---|---|---|
+| A6-20 | 認証し直しの遅れとつながらない時間が残ったが、その間 AP から RADIUS の要求がなく、エッジと中央には届いていない（端末 2 は関連付けの直後に AP に切られ続けた（reason 7）。Pixel は Session-Timeout で切られた後 16 分つなぎ直さなかった） | 判定はエッジと中央の側で行い、AT-12 は PASS。無線の側のつながらない時間は記録して顧客に伝える（C6-9 の「つながらない時間がない」の読み替え） |
+| A6-21 | 手順書の AT-12 の見方 | つながらない時間と遅れは、その間に AP から要求（aka-radius の `PKT_RECV`）が来ていたかで切り分ける。11.1 UniFi に、無線の側の切断、キャッシュでのつなぎ直しの後は Session-Timeout の認証し直しが来ないことがある（64 分）、Session-Timeout の Stop の通信量が 0 で届くことがある、を足す |
+
+そのほか: 台本の `tls` の段が AT-11 で失効させた古い証明書を使っていて、エッジが CRL で断る行が出たので、更新した証明書を使うように直した。
+
 ## 残したもの（A6-18）
 
-エッジの直しの後に AT-12 をやり直すため、テナント at1・at2、グループ `unifi`、SIM 2 枚の登録、UniFi の設定、スロットの名前の CNAME 2 件は残してある。やり直しの後に `clean` で片付け、UniFi の設定と CNAME は人が消す。
+エッジの直しの後に AT-12 をやり直すため、テナント at1・at2、グループ `unifi`、SIM 2 枚の登録、UniFi の設定、スロットの名前の CNAME 2 件は残してある。やり直しが済んだので `clean` で片付け、UniFi の設定と CNAME は人が消す（片付けの結果はここに足す）。

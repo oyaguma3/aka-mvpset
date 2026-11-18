@@ -187,10 +187,13 @@ dns) # スロットの名前を公開のリゾルバーで引く
 	;;
 tls) # AP の接続の手順書 4.4 の確かめを手元から（グループの証明書で TLS）。名前で照らすと通る。IPv4 アドレスで照らすと、
 	# サーバー証明書に名前しか入っていないので合わない（名前を照らす AP にサーバーを IP アドレスで書くと、こうなる）
+	# AT-11 の後は古い証明書が失効しているので、更新した証明書（-new）があればそれを使う（古いほうはエッジが CRL で断る）
 	port=$(sql "SELECT port FROM tenant_radsec WHERE tenant_id=$(tid)")
+	c=$GRP-cert k=$GRP-key
+	[ -s "$A/unifi/$GRP-cert-new.pem" ] && c=$GRP-cert-new k=$GRP-key-new
 	for s in primary secondary; do
 		h=$s.$TEN.$DNS_DOMAIN ip=$(dig +short @1.1.1.1 "$s.$TEN.$DNS_DOMAIN" | tail -1)
-		o=(-CAfile "$A/unifi/server-ca.pem" -cert "$A/unifi/$GRP-cert.pem" -key "$A/unifi/$GRP-key.pem")
+		o=(-CAfile "$A/unifi/server-ca.pem" -cert "$A/unifi/$c.pem" -key "$A/unifi/$k.pem")
 		v1=$(openssl s_client -connect "$h:$port" -servername "$h" -verify_hostname "$h" "${o[@]}" < /dev/null 2>&1 | grep -m1 'Verify return code')
 		v2=$(openssl s_client -connect "$ip:$port" -verify_ip "$ip" "${o[@]}" < /dev/null 2>&1 | grep -m1 'Verify return code')
 		echo "$s 名前で: ${v1:-応答なし} / IPv4 アドレスで: ${v2:-応答なし}"

@@ -5,7 +5,7 @@
 - AP の設定のしかたは書かない。aka-ossbss の [AP の接続の手順書](https://github.com/oyaguma3/aka-ossbss/blob/main/docs/ap-connection-guide.md)（以下「AP の接続の手順書」）を顧客に渡す。
 - 運用担当の画面の操作は、aka-ossbss の運用ガイド 14 章（RadSec の受け口）を見る。
 - 要件: [要件と構成の概要](requirements-overview.md) §16.2（受入試験）、§9.5（製品ごとの収容の方式）。
-- 状態: 下書き（2026-11-18）。段階 6-4 の予行（2026-11-17〜18、UniFi U7 Lite・Android の端末・USB のモデムの端末）の結果で直した。AT-12 は予行で FAIL だったので、エッジの直し（段階 6-5）の後にやり直して、この手順書をもう一度直す。予行の記録は `verify/acceptance/`。
+- 状態: 下書き（2026-11-18）。段階 6-4 の予行（2026-11-17〜18、UniFi U7 Lite・Android の端末・USB のモデムの端末）の結果で直した。AT-12 は予行で FAIL だったので、エッジの直し（段階 6-5）の後に同じ環境で一晩やり直して PASS にし（2026-11-18〜19）、その結果でもう一度直した。予行の記録は `verify/acceptance/`。
 
 ## 1. 目的と範囲
 
@@ -96,13 +96,14 @@
 | AT-09 | 送信元の範囲 | 拠点の公開のアドレスを範囲に入れてつなぐ → 範囲の外（例 `192.0.2.0/24`）にしてつなぐ → 顧客の希望の値に戻す | 範囲の中なら通る、外なら TLS に応じずつながらない | エッジのログの `ignoring unknown TLS client` |
 | AT-10 | 予備のサーバーへの切り替え | primary のエッジのテナントのポートを止める（運用担当。10 章） | AP が secondary に切り替わって通る。戻したときに primary へ戻るかを記録する（製品による。戻らない製品もある） | 両方のエッジの「ログ」、切り替わるまでの時間 |
 | AT-11 | 証明書の差し替え | 顧客が新しい鍵と CSR を作る → AP の詳細の「証明書の更新」で発行し「反映する」を押す（宣言の版が上がる） → 顧客が AP に入れ替える（AP の再起動が要る製品がある。11 章） → 古い証明書を「入れ替えた後の失効」→ エッジのコンテナを「再起動」して張り直させる | 張り直した後も通る（新しい証明書を使っている） | AP の詳細の証明書の一覧、エッジのログ |
-| AT-12 | 長い時間の接続の維持 | 端末をつないだまま一晩置く | 端末ごとに、Session-Timeout ごとの認証し直しが遅れずに通り続け、端末がつながらない時間がない。Accounting の Interim が届き続ける | `AUTH_SUCCESS` の時刻の間隔、エッジのログの AP の接続（`tlsserverrd: timeout … (no requests), closing connection` と `tlsservernew … up`）、端末の接続の記録、セッションの一覧 |
+| AT-12 | 長い時間の接続の維持 | 端末をつないだまま一晩置く | AP のエッジへの接続が閉じられずに続き、AP から届いた認証（Session-Timeout ごとの認証し直しを含む）がすぐ通り続ける。Accounting の Interim が届き続ける。端末がつながらない時間と認証し直しの遅れは、その間に AP から要求が来ていたかで切り分けて記録する | エッジのログの AP の接続（`tlsserverrd: timeout … (no requests), closing connection` が出ないこと、`tlsservernew … up` の時刻）、aka-radius のログの `PKT_RECV`（AP から要求が届いた時刻）と `AUTH_SUCCESS` の時刻の間隔、端末の接続の記録、セッションの一覧 |
 
 - AT-07・AT-08 は、運用担当の試験用 SIM で行う。顧客の回線の SIM は止めない。
 - AT-08 は、刻印（エッジが付けるテナント）で別のテナントの SIM を断ることを確かめる。付け替え先のテナントは空でよい。
 - AT-09 は、拠点のアドレスが固定でない顧客では、範囲の外の確かめだけ行い、範囲は空に戻す。
 - AT-10 は、データ面と管理面が止まる試験ではない。エッジが 1 台止まったときの AP の振る舞いだけを見る。
-- AT-12 は、認証の成功の回数では判定しない。拒否が 0 でも、AP がエッジへの接続を張り直すのが遅れると認証し直しが遅れ、そのあいだ端末がつながらない（2026-11-17 の予行。エッジが要求のない AP の接続を 15 分で閉じていた。段階 6-5 で閉じないように直す）。端末ごとに `AUTH_SUCCESS` の時刻を並べ、Session-Timeout からの遅れを見る。
+- AT-12 は、認証の成功の回数では判定しない。拒否が 0 でも、AP がエッジへの接続を張り直すのが遅れると認証し直しが遅れ、そのあいだ端末がつながらない（2026-11-17 の予行。エッジが要求のない AP の接続を 15 分で閉じていた。段階 6-5 で閉じないように直した）。端末ごとに `AUTH_SUCCESS` の時刻を並べ、Session-Timeout からの遅れを見る。
+- 遅れやつながらない時間があったら、その間に aka-radius に AP からの要求（`PKT_RECV`）が来ていたかを見る。要求が来ていて通らなかった・遅れた、またはエッジが AP の接続を閉じていたなら、エッジと中央の側の問題として FAIL にする。要求が来ていない（端末が AP に切られてつなぎ直せない、端末がつなぎ直さない）なら、AP と端末の無線の側で起きたこととして記録し、顧客に伝える（判定はエッジと中央の側で行う。2026-11-18〜19 のやり直しで決めた）。
 
 ## 7. 顧客への説明（了承を記録する）
 
@@ -128,7 +129,7 @@
 - NAS-Identifier の設定と実際の値:
 - Called-Station-Id の形:       （例 MAC:SSID）
 - 切り替え: secondary に移るまで   秒、primary に戻ったか（戻るまで   分）
-- 一晩: 時間   、認証し直し   回、拒否   回、認証し直しの最大の遅れ   分、端末がつながらない時間
+- 一晩: 時間   、認証し直し   回、拒否   回、認証し直しの最大の遅れ   分、端末がつながらない時間（その間に AP から要求があったか）、AP のエッジへの接続を張り直した回数
 
 | ID    | 結果 (PASS/FAIL/対象外) | 値・メモ |
 |-------|--------------------------|----------|
@@ -181,8 +182,9 @@ sudo nft delete table inet aka_at10 && sudo systemctl stop aka-at10-undo.timer
 | `AUTH_POLICY_DENIED` | ルールの NAS-Identifier と SSID（ログの `nas_identifier`・`ssid` と比べる）、所属のテナント |
 | `AUTH_STAMP_*` | エッジの刻印の設定（aka-radius の運用ガイド 12 章） |
 | EAP-AKA' だけ通らない | vecgen 側の AMF が `8000` か |
-| 最初の認証だけ遅い・Session-Timeout の認証し直しが遅れる | AP の RadSec の接続がエッジに閉じられていて、AP が張り直すのを待っている。エッジのログで、`tlsserverrd: timeout … (no requests), closing connection` の後の `tlsservernew … up` までの間を見る |
-| Accounting の `ACCT_SESSION_NOT_FOUND`（WARN）が多い | 端末がキャッシュした鍵で EAP なしにつなぎ直している（Access-Accept がないので aka-radius にセッションがない）。利用は集計される |
+| 最初の認証だけ遅い・Session-Timeout の認証し直しが遅れる・端末がつながらない時間がある | まず、その間に aka-radius に AP からの要求（`PKT_RECV`）が来ていたか。来ていて通らない・遅いならエッジと中央の側を見る。来ていなければ、AP と端末の無線の側（端末が AP に切られてつなぎ直せない、端末がつなぎ直さない。11.1）か、AP が RadSec の接続を張り直すのを待っている（エッジのログの `tlsservernew … up` の時刻。段階 6-5 より前のエッジは要求のない接続を 15 分で閉じ、`tlsserverrd: timeout … (no requests), closing connection` が出た） |
+| Accounting の `ACCT_SESSION_RESUMED`（INFO）が出る | 端末がキャッシュした鍵で EAP なしにつなぎ直した（Access-Accept がないので、aka-radius が Accounting の Start でセッションを作り直した）。利用は集計される |
+| Accounting の `ACCT_SESSION_NOT_FOUND`（WARN）が出る | セッションがなく、作り直す材料（Class の値と IMSI）もない Accounting。AP が Class を返していないか、Stop だけが届いた。利用は集計される |
 
 証明書と鍵が対かを確かめる:
 
@@ -194,7 +196,7 @@ sudo nft delete table inet aka_at10 && sudo systemctl stop aka-at10-undo.timer
 
 | 製品 | 確かめた日 | 結果 |
 |---|---|---|
-| Ubiquiti UniFi（U7 Lite、UniFi OS Server） | 2026-11-17〜18（予行） | AT-01〜AT-11 は通る。AT-12 は FAIL（エッジの直しの後にやり直す）。気をつけることは 11.1 |
+| Ubiquiti UniFi（U7 Lite、UniFi OS Server） | 2026-11-17〜19（予行） | AT-01〜AT-12 は通る（AT-12 は 11-17 の夜に FAIL、エッジの直しの後の 11-18 の夜にやり直して PASS）。気をつけることは 11.1 |
 | ほかの製品 | — | 未確認。§9.5 の条件を、収容するときに確かめて足す |
 
 ### 11.1 Ubiquiti UniFi
@@ -205,5 +207,7 @@ sudo nft delete table inet aka_at10 && sudo systemctl stop aka-at10-undo.timer
 - **差し替え**: CA・クライアント証明書・秘密鍵を差し替えても、**AP を再起動するまで新しいものを読み込まない**。再起動しないと、エッジのログに `unexpected eof while reading` が出て、AP が TLS の途中で切り続ける。サーバーの欄とポート、NAS-Identifier の変更は「変更を適用」ですぐ効く。
 - **NAS-Identifier**: 「AP MAC」「サイト名」「AP 名」「BSS ID」「カスタム」から選ぶ。「AP MAC」を勧める（AP ごとに違い、AP の名前を変えても変わらない）。値は小文字・コロン区切り（例 `74:f9:2c:…`）。Called-Station-Id は電波の MAC アドレス（BSSID。大文字・ハイフン区切りで、末尾が AP の MAC と違う）と SSID を「:」でつないだもの。ルールで AP を指すときは NAS-Identifier の形で書く。
 - **切り替え**: primary が止まると数秒で secondary に切り替わる。primary が戻っても、secondary で動いている間は primary に戻らない（エッジの作業の後は、UniFi の AP が secondary に寄ったままになる）。
-- **接続の維持**: 認証の接続では生存確認（Status-Server）を送らない。エッジが要求のない接続を閉じると、次の認証のときに張り直すが、すぐのときと 16〜59 分遅れるときがあった（2026-11-17）。遅れている間は認証し直しが通らず、端末がつながらない。段階 6-5 でエッジが AP の接続を閉じないように直す。Accounting の接続は途中経過（600 秒ごと）で使われ続けるので閉じられない。
-- **端末側**: キャッシュした鍵で EAP なしにつなぎ直す端末（Linux の wpa_supplicant など）では、その後の Accounting が `ACCT_SESSION_NOT_FOUND` になる（10.2）。Android の端末は Session-Timeout ごとに EAP で認証し直した。
+- **接続の維持**: 認証の接続では生存確認（Status-Server）を送らない。直す前のエッジは要求のない接続を 15 分で閉じ、次の認証のときの張り直しが 16〜59 分遅れることがあった（2026-11-17）。遅れている間は認証し直しが通らず、端末がつながらない。段階 6-5 でエッジが AP の接続を閉じないように直した後は、AP の 2 本の接続（認証と Accounting）が一晩（約 7 時間 35 分）張ったままで、認証し直しは Session-Timeout から 5〜22 秒で通った（2026-11-18〜19）。Accounting の接続は途中経過（600 秒ごと）で使われ続ける。
+- **キャッシュでのつなぎ直し**: キャッシュした鍵（PMKSA）で EAP なしにつなぎ直す端末（Linux の wpa_supplicant など）では、Access-Accept がないので、aka-radius はその後の Accounting の Start でセッションを作り直す（`ACCT_SESSION_RESUMED`。段階 6-5 より前は `ACCT_SESSION_NOT_FOUND`。10.2）。キャッシュでつなぎ直した後は、Session-Timeout を過ぎても認証し直しが来ないことがあった（つなぎ直してから 64 分）。加入者を止めても、その端末は次に EAP で認証するまでつながり続ける。Android の端末は Session-Timeout ごとに EAP で認証し直した。
+- **無線の側の切断**: Intel の無線の端末（Linux の wpa_supplicant）は、AP に関連付けた直後に AP から切られる（reason 7）ことがあり、続くと 2 分半〜12 分つながらなかった（一晩に 4 回）。Android の端末も、Session-Timeout で切られた後に 1 回だけ 16 分つなぎ直さなかった。どちらも、その間 AP は RADIUS の要求を送っていない（エッジと中央には届いていない）。原因は分かっていない。
+- **Accounting の通信量**: Session-Timeout で切ったときの Accounting-Stop で、通信量が 0 で届くことがあった（一晩に 2 回）。直前の途中経過より小さいので aka-radius は WARN `USAGE_COUNTER_RESET` を出し、増えた分を 0 と数える。最後の途中経過から Stop までの通信量（最大で途中経過の間隔の 10 分ぶん）は数えられない。
