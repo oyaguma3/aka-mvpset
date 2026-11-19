@@ -821,7 +821,24 @@ VPS（KAGOYA CLOUD VPS）の 5 台に全ノードを配置し、WireGuard・nfta
 - AT-12 のやり直し（11-18 23:29〜11-19 06:57。AT-01〜AT-03 も PASS）: **PASS**。AP の edge-01 への 2 本の接続（認証と Accounting）は約 7 時間 35 分張ったままで、エッジが閉じる行は出なかった。AP から届いた認証は 17 回すべてすぐ通り（拒否・再同期 0）、Session-Timeout の認証し直しは 5〜22 秒の遅れで通った。Accounting はキャッシュの鍵でのつなぎ直しでセッションを作り直した（`ACCT_SESSION_RESUMED` 7 回、`ACCT_SESSION_NOT_FOUND` 0 回。前の夜は 163 回）。
 - A6-20（判定の読み替え）: 遅れとつながらない時間が残った（Android の端末が Session-Timeout で切られた後 16 分つなぎ直さなかったのが 1 回、USB のモデムの端末が関連付けの直後に AP に切られ続けて 2 分半〜12 分つながらなかったのが 4 回）が、どれもその間 AP から RADIUS の要求がなく、エッジと中央には届いていない。判定はエッジと中央の側で行い、無線の側のつながらない時間は記録して顧客に伝える（C6-9 の「つながらない時間がない」の読み替え）。手順書の AT-12 の見方を「その間に AP から要求が来ていたかで切り分ける」に改めた（A6-21）。
 - そのほか分かったこと（手順書 11.1。製品は直さない）: UniFi では、端末がキャッシュの鍵でつなぎ直した後は、Session-Timeout を過ぎても認証し直しが来ないことがあった（64 分）。加入者を止めても、その端末は次に EAP で認証するまでつながり続ける。Session-Timeout で切ったときの Accounting-Stop の通信量が 0 で届くことがあり（2 回）、aka-radius は WARN `USAGE_COUNTER_RESET` を出して増えた分を 0 と数える（最後の途中経過から Stop までの最大 10 分ぶんは数えられない）。
-- 次: 予行の環境の片付け（`verify/acceptance/drive.sh clean`。UniFi の設定と CNAME 2 件は人が消す）→ 6-5b（C6-10）。
+- 予行の環境は 11-19 に片付けた（`verify/acceptance/drive.sh clean`。UniFi の設定と CNAME 2 件は人が消した。`verify/acceptance/README.md` の「片付け」）。
+
+#### 6-5b v1.0.0 のタグとリリース、タグの束を VPS へ（2026-11-19）
+
+確認事項 C6-10 のとおり。文書と CI の固定だけを改め、6-5a の組み合わせとコードの差はない。
+
+| リポジトリ | 内容 | コミット |
+|---|---|---|
+| [aka-vecgen](https://github.com/oyaguma3/aka-vecgen)・[radsec-edge](https://github.com/oyaguma3/radsec-edge)・[radsec-ca](https://github.com/oyaguma3/radsec-ca) | 設計概要の状態の行を v1.0.0 に含まれる版に | aka-vecgen `42f5f5d`、radsec-edge `4254bac`、radsec-ca `e84ab75` |
+| [aka-radius](https://github.com/oyaguma3/aka-radius) | 同じ（feature → develop の PR #23 を squash、develop → main の PR #24 を merge commit） | develop `c55f6c7`・main `603f8c9` |
+| [aka-provisioner](https://github.com/oyaguma3/aka-provisioner)・[aka-ossbss](https://github.com/oyaguma3/aka-ossbss) | 同じと、CI の固定（契約の試験の相手を上のコミットに） | aka-provisioner `29cea3a`・`0bbc58d`、aka-ossbss `f1be948`・`03a4419` |
+| 本リポジトリ | 概要・課金レコード・受入試験の手順書の題から「（下書き）」を外し、状態の行を v1.0.0 の正本・版に。予行の片付けの記録、`versions.env` | main `c2d4304`、この節のコミット |
+
+- タグとリリース: 7 つのリポジトリの上のコミット（aka-radius は main）に注釈つきタグ `mvpset-v1.0.0` を付けた（6 つのノードを先に、本リポジトリを最後に push）。タグのコミットで各リポジトリの CI・govulncheck・conformance がすべて成功し、本リポジトリに GitHub のリリース（組み合わせ、CI の実行、イメージの ID と `SHA256SUMS`、既知の制約）を公開した。
+- タグの束: タグの push で動いた `build-images`（run `44526264453`、約 3 分）が 8 つのイメージを作り、束を読み込み直して ID が `images.txt` と一致した。artifact（約 112 MB、90 日）を手元に取り、`SHA256SUMS` の 12 個がすべて一致した。radsecproxy のイメージは作り直しで ID が変わった（`950fe918c70e`。6-5a の束は `66725bd32f2e`）。
+- VPS への入れ替え（11-19 22:34〜22:42）: データ面 → 管理面 → edge-01 → edge-02 の順に 1 台ずつ（手のバックアップ → 束の読み込み → `/opt` → 版 → 作り直し）。各台 9〜21 秒で healthy、ログの版は v1.0.0 のコミット、作り直しの後の WARN・ERROR は 0（毎時の証明書ののぞきを除く）、下流 5/5、公開のホスト名 302。管理面の作り直しの瞬間に `ContainerNotRunning`・`ContainerUnhealthy` が pending になり、発報せずに消えた。エッジはテナントのコンテナ 20 個を作り直さず、2 台とも全テナントが「古い」（20）になった。監視ノードは外形監視の部品が変わっていないので入れ替えていない。
+- 段階的な反映し直し（22:42〜22:57）: aka-ossbss のエッジの詳細から、各エッジで probe → sc0001（AP 100 台）→ 3 件 → 5 件 → 10 件の順に 10 回・40 件。すべて成功、1 件 2〜11 秒。後は両エッジとも 20/20 が版 2・新しいイメージで、どの設定も client ブロックの数と `IdleTimeout 0` の数が一致し、台帳の配置 40 件が今の形で前の形（6-5a のイメージ）に戻せる。外形監視は 30 分で 2 スロットとも 60 回すべて成功、発報 0、ダッシュボードの警告なし。6-5a の PIN のログインがまだ有効だったので、PIN は要らなかった。前の形の行き先でなくなった radsecproxy のイメージ（`1.11.4-pc1` と、6-0 の前のイメージ）はエッジに残してある。
+- 次: 12-01 6:00 の本番の締めを v1.0.0 で動かし、ファイルを手元の試験用の PGP 鍵で開いて確かめる（R6-3）。
 
 ## 19. 未決・計測待ち
 
